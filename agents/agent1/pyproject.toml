@@ -1,0 +1,87 @@
+# Portions derived from Microsoft Agent Framework (MIT license):
+#   https://github.com/microsoft/agent-framework
+#   https://github.com/microsoft/agent-framework/blob/main/LICENSE
+
+[project]
+name = "agent1"
+version = "0.1.0"
+description = "Example agent built from the python-agent-template."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+license-files = ["LICENSE"]
+authors = [{ name = "python-agent-template maintainers" }]
+urls.homepage = "https://github.com/pmalarme/python-agent-template"
+urls.source = "https://github.com/pmalarme/python-agent-template/tree/main/agents/agent1"
+classifiers = [
+	"License :: OSI Approved :: MIT License",
+	"Development Status :: 3 - Alpha",
+	"Intended Audience :: Developers",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
+	"Typing :: Typed",
+]
+
+[project.scripts]
+agent1 = "agent1.__main__:main"
+
+[tool.uv]
+package = true
+prerelease = "if-necessary-or-explicit"
+environments = [
+	"sys_platform == 'darwin'",
+	"sys_platform == 'linux'",
+	"sys_platform == 'win32'",
+]
+
+[tool.uv-dynamic-versioning]
+fallback-version = "0.0.0"
+
+[tool.pytest.ini_options]
+testpaths = 'tests'
+addopts = "-ra -q -r fEX"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+timeout = 120
+
+[tool.ruff]
+extend = "../../pyproject.toml"
+
+[tool.coverage.run]
+omit = ["**/__init__.py"]
+
+[tool.pyright]
+extends = "../../pyproject.toml"
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+ignore_missing_imports = true
+warn_unused_ignores = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_decorators = true
+check_untyped_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+show_error_codes = true
+
+[tool.bandit]
+targets = ["agent1"]
+exclude_dirs = ["tests"]
+
+[tool.poe]
+executor.type = "uv"
+include = "../../shared_tasks.toml"
+
+[tool.poe.tasks]
+# Project-specific overrides to scope checks/coverage to this agent; shared tasks remain available for cross-agent runs
+mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
+test = "uv run pytest --cov=agent1 --cov-report=term-missing:skip-covered"
+
+[build-system]
+requires = ["flit-core>=3.12.0,<4"]
+build-backend = "flit_core.buildapi"
