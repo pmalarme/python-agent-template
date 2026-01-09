@@ -29,5 +29,5 @@ updates:
       interval: "weekly"
       day: "sunday"
     labels:
-      - "github actions"
-      - "Dependencies"
+      - "github-actions"
+      - "dependencies"
