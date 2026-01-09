@@ -24,7 +24,7 @@ updates:
       - "dependencies"
   # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
-    directory: "/.github"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "sunday"
