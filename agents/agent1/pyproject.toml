@@ -70,7 +70,7 @@ no_implicit_optional = true
 show_error_codes = true
 
 [tool.bandit]
-targets = ["agent1"]
+targets = ["src/agent1"]
 exclude_dirs = ["tests"]
 
 [tool.poe]

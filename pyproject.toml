@@ -151,7 +151,8 @@ omit = ["**/__init__.py"]
 
 [tool.pyright]
 include = ["agents", "scripts"]
-exclude = ["**/tests/**", "**/.venv/**", "**/.uv/**", "**/scripts/**"]
+exclude = ["**/tests/**", "**/.venv/**", "**/.uv/**"]
+extraPaths = ["scripts"]
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 reportUnusedImport = true

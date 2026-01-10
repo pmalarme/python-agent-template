@@ -36,12 +36,14 @@ import argparse
 from enum import Enum
 import glob
 import logging
+import os
 import tempfile
 import subprocess  # nosec
+from typing import Any, cast
 
 from pygments import highlight  # type: ignore
 from pygments.formatters import TerminalFormatter
-from pygments.lexers import PythonLexer
+from pygments.lexers import PythonLexer  # type: ignore[reportUnknownVariableType]
 
 
 logger = logging.getLogger(__name__)
@@ -147,19 +149,24 @@ def check_code_blocks(
             markdown_file_path_with_line_no = f"{markdown_file_path}:{line_no}"
             logger.info("Checking a code block in %s...", markdown_file_path_with_line_no)
 
-            with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
-                temp_file.write(code_block.encode("utf-8"))
-                temp_file.flush()
+            tmp_path = ""
+            try:
+                with tempfile.NamedTemporaryFile(suffix=".py", delete=False) as temp_file:
+                    temp_file.write(code_block.encode("utf-8"))
+                    temp_file.flush()
+                    tmp_path = temp_file.name
 
                 result = subprocess.run(
-                    ["uv", "run", "pyright", temp_file.name],
+                    ["uv", "run", "pyright", tmp_path],
                     capture_output=True,
                     text=True,
                     cwd=".",
                 )  # nosec
 
                 if result.returncode != 0:
-                    highlighted_code = highlight(code_block, PythonLexer(), TerminalFormatter())  # type: ignore
+                    lexer = cast(Any, PythonLexer())
+                    formatter = cast(Any, TerminalFormatter())
+                    highlighted_code: str = highlight(code_block, lexer, formatter)
                     logger.info(
                         " %s\n%s\n%s\n%s\n%s\n\n%s\n%s%s\n",
                         with_color("FAIL", Colors.CREDBG),
@@ -177,6 +184,12 @@ def check_code_blocks(
                     had_errors = True
                 else:
                     logger.info(" %s", with_color("OK", Colors.CGREENBG))
+            finally:
+                if tmp_path:
+                    try:
+                        os.unlink(tmp_path)
+                    except FileNotFoundError:
+                        pass
 
         if had_errors:
             files_with_errors.append(markdown_file_path)

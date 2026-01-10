@@ -38,11 +38,12 @@ import asyncio
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import tomli
-from py2docfx.__main__ import main as py2docfx_main
+from py2docfx.__main__ import main as py2docfx_main  # type: ignore[reportMissingImports]
 
-from scripts.utils.task_utils import discover_projects
+from utils.task_utils import discover_projects
 
 
 def load_package_name(agent_dir: Path) -> str:
@@ -51,10 +52,10 @@ def load_package_name(agent_dir: Path) -> str:
     return data.get("project", {}).get("name", agent_dir.name)
 
 
-def build_manifest(agent_dirs: list[Path]) -> dict:
+def build_manifest(agent_dirs: list[Path]) -> dict[str, Any]:
     """Build py2docfx package manifest using path installs for each agent."""
 
-    packages = []
+    packages: list[dict[str, Any]] = []
     for agent_dir in agent_dirs:
         name = load_package_name(agent_dir)
         packages.append(
