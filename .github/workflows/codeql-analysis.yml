@@ -17,11 +17,11 @@ jobs:
       actions: read
       contents: read
       security-events: write
-    
+
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'actions' ]
+        language: [ 'actions', 'python' ]
 
     steps:
     - name: Checkout repository

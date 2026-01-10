@@ -1,0 +1,75 @@
+# Portions derived from Microsoft Agent Framework (MIT license):
+#   https://github.com/microsoft/agent-framework
+#   https://github.com/microsoft/agent-framework/blob/main/LICENSE
+fail_fast: true
+minimum_pre_commit_version: "3.6.0"
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+        name: Normalize line endings
+      - id: check-yaml
+        name: Check YAML files
+        files: "\\.ya?ml$"
+        # exclude: '^docs/'  # example: skip generated docs
+      - id: check-toml
+        name: Check TOML files
+        files: "\\.toml$"
+      - id: check-json
+        name: Check JSON files
+        files: "\\.json$"
+      - id: check-ast
+        name: Check Python syntax
+        types: ["python"]
+      - id: debug-statements
+        name: Forbid debug statements
+
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+      - id: pyupgrade
+        name: Upgrade Python syntax to 3.10+
+        args: ["--py310-plus"]
+        # exclude: '^agents/.*/migrations/'  # example: keep legacy auto-generated code
+
+  - repo: local
+    hooks:
+      - id: poe-check
+        name: Run checks through Poe
+        entry: uv run poe pre-commit-check
+        language: system
+        files: "^(agents/|scripts/)"
+
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.5
+    hooks:
+      - id: bandit
+        name: Bandit security checks
+        args: ["-c", "pyproject.toml"]
+        additional_dependencies: ["bandit[toml]"]
+
+  - repo: https://github.com/nbQA-dev/nbQA
+    rev: 1.9.1
+    hooks:
+      - id: nbqa-check-ast
+        name: Check valid Python in notebooks
+        types: ["jupyter"]
+        files: "\\.ipynb$"
+        # exclude: '^docs/'
+
+  - repo: https://github.com/astral-sh/uv-pre-commit
+    rev: 0.4.30
+    hooks:
+      - id: uv-lock
+        name: Update uv lockfile
+        files: ^pyproject\.toml$
+        args: ["--project", "."]
+        pass_filenames: false
+        # exclude: '^agents/'  # example: skip package-level pyproject
