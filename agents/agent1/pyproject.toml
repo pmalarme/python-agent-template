@@ -79,6 +79,7 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 # Project-specific overrides to scope checks/coverage to this agent; shared tasks remain available for cross-agent runs
+bandit = "uv run bandit -c pyproject.toml -r src/agent1"
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
 test = "uv run pytest --cov=agent1 --cov-report=term-missing:skip-covered"
 
