@@ -8,7 +8,7 @@ format.ref = "fmt"
 
 lint = "ruff check"
 pyright = "pyright"
-bandit = "uv run bandit -c $POE_ROOT/pyproject.toml -r $POE_ROOT/agents $POE_ROOT/scripts"
+bandit = "sh -c 'ROOT=$(git -C \"$POE_ROOT\" rev-parse --show-toplevel); uv run bandit -c \"$ROOT/pyproject.toml\" -r \"$ROOT/agents\" \"$ROOT/scripts\"'"
 
 publish = "uv publish"
 
