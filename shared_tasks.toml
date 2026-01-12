@@ -1,0 +1,18 @@
+# Portions derived from Microsoft Agent Framework (MIT license):
+#   https://github.com/microsoft/agent-framework
+#   https://github.com/microsoft/agent-framework/blob/main/LICENSE
+
+[tool.poe.tasks]
+fmt = "ruff format"
+format.ref = "fmt"
+
+lint = "ruff check"
+pyright = "pyright"
+bandit = "sh -c 'ROOT=$(git -C \"$POE_ROOT\" rev-parse --show-toplevel); uv run bandit -c \"$ROOT/pyproject.toml\" -r \"$ROOT/agents\" \"$ROOT/scripts\"'"
+
+publish = "uv publish"
+
+clean-dist = "rm -rf dist"
+build-package = "uv build"
+move-dist = "sh -c 'mkdir -p ../../dist && mv dist/* ../../dist/ 2>/dev/null || true'"
+build = ["build-package", "move-dist"]
