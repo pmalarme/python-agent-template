@@ -189,7 +189,7 @@ def check_code_blocks(
                     try:
                         os.unlink(tmp_path)
                     except FileNotFoundError:
-                        pass
+                        logger.debug("Temporary file %s was already removed; skipping unlink.", tmp_path)
 
         if had_errors:
             files_with_errors.append(markdown_file_path)

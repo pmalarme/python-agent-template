@@ -48,9 +48,6 @@ from utils.task_utils import discover_projects, extract_poe_tasks
 
 ROOT = Path(__file__).resolve().parent.parent
 
-
-
-
 def git_changed_files(base_ref: str) -> list[str]:
     """Get changed files via git diff, trying a couple of fallbacks.
 

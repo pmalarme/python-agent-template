@@ -85,7 +85,7 @@ async def generate_docs(root: Path, output: Path) -> None:
             agent_dirs.append(candidate)
 
     extra_paths = [str(root)] + [str(agent_dir) for agent_dir in agent_dirs]
-    os.environ["PYTHONPATH"] = ":".join(extra_paths + [os.environ.get("PYTHONPATH", "")])
+    os.environ["PYTHONPATH"] = os.pathsep.join(extra_paths + [os.environ.get("PYTHONPATH", "")])
     manifest = build_manifest(agent_dirs)
 
     print("Discovered agents:")

@@ -14,15 +14,15 @@ authors = [{ name = "python-agent-template maintainers" }]
 urls.homepage = "https://github.com/pmalarme/python-agent-template"
 urls.source = "https://github.com/pmalarme/python-agent-template/tree/main/agents/agent1"
 classifiers = [
-	"License :: OSI Approved :: MIT License",
-	"Development Status :: 3 - Alpha",
-	"Intended Audience :: Developers",
-	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.10",
-	"Programming Language :: Python :: 3.11",
-	"Programming Language :: Python :: 3.12",
-	"Programming Language :: Python :: 3.13",
-	"Typing :: Typed",
+    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
 ]
 
 [project.scripts]
@@ -32,9 +32,9 @@ agent1 = "agent1.__main__:main"
 package = true
 prerelease = "if-necessary-or-explicit"
 environments = [
-	"sys_platform == 'darwin'",
-	"sys_platform == 'linux'",
-	"sys_platform == 'win32'",
+    "sys_platform == 'darwin'",
+    "sys_platform == 'linux'",
+    "sys_platform == 'win32'",
 ]
 
 [tool.uv-dynamic-versioning]

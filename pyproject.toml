@@ -244,9 +244,6 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
-
-
-
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]
 build-backend = "flit_core.buildapi"
