@@ -2,8 +2,8 @@
 
 import pytest
 
-from agent1 import AgentConfig, ExampleAgent
-from agent1.agent import MissingNameError
+from python_agent_template.agents.agent1 import AgentConfig, ExampleAgent
+from python_agent_template.agents.agent1.agent import MissingNameError
 
 
 def test_run_greets_name() -> None:
