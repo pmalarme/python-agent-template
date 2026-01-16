@@ -7,7 +7,7 @@ Example agent built from the python-agent-template. Use this as a starting point
 - Change into the agent: `cd agents/agent1`.
 - Run the agent: `uv run agent1 Alice --greeting hello`.
 - Run full checks for this agent: `uv run poe check` (from `agents/agent1`).
-- Optional: switch back to root for repo-wide checks: `cd .. && cd .. && uv run poe check`.
+- Optional: switch back to root for repo-wide checks: `cd ../.. && uv run poe check`.
 
 ## Common dev tasks (agent-scoped)
 - Format: `uv run poe fmt`
