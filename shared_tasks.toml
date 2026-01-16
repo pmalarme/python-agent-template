@@ -10,9 +10,12 @@ lint = "ruff check"
 pyright = "pyright"
 bandit = "sh -c 'ROOT=$(git -C \"$POE_ROOT\" rev-parse --show-toplevel); uv run bandit -c \"$ROOT/pyproject.toml\" -r \"$ROOT/agents\" \"$ROOT/scripts\"'"
 
+# publish builds and uploads the package to the configured index (e.g., GitHub Packages)
 publish = "uv publish"
+
+# repo/agent check bundle; when run with -C agents/<name>, scopes to that agent
+check = ["fmt", "lint", "pyright", "mypy", "bandit", "test"]
 
 clean-dist = "rm -rf dist"
 build-package = "uv build"
-move-dist = "sh -c 'mkdir -p ../../dist && mv dist/* ../../dist/ 2>/dev/null || true'"
-build = ["build-package", "move-dist"]
+build = ["build-package"]
