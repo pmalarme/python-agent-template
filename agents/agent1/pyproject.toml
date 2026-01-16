@@ -26,7 +26,7 @@ classifiers = [
 ]
 
 [project.scripts]
-agent1 = "agent1.__main__:main"
+agent1 = "python_agent_template.agents.agent1.__main__:main"
 
 [tool.uv]
 package = true
@@ -70,7 +70,7 @@ no_implicit_optional = true
 show_error_codes = true
 
 [tool.bandit]
-targets = ["src/agent1"]
+targets = ["src/python_agent_template/agents/agent1"]
 exclude_dirs = ["tests"]
 
 [tool.poe]
@@ -79,10 +79,13 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 # Project-specific overrides to scope checks/coverage to this agent; shared tasks remain available for cross-agent runs
-bandit = "uv run bandit -c pyproject.toml -r src/agent1"
+bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1"
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
-test = "uv run pytest --cov=agent1 --cov-report=term-missing:skip-covered"
+test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered"
 
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]
 build-backend = "flit_core.buildapi"
+
+[tool.flit.module]
+name = "python_agent_template.agents.agent1"

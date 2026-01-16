@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 
-from agent1.agent import AgentConfig, ExampleAgent
+from python_agent_template.agents.agent1.agent import AgentConfig, ExampleAgent
 
 logger = logging.getLogger(__name__)
 
