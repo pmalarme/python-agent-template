@@ -40,5 +40,5 @@ Example agent built from the python-agent-template. Use this as a starting point
 - The `agents` namespace has no `__init__.py` so multiple agents can coexist without collisions; `agent1` is a regular package inside it.
 
 ## Anatomy
-- `src/agents/agent1/agent.py` — agent implementation.
+- `src/python_agent_template/agents/agent1/agent.py` — agent implementation.
 - `tests/` — unit tests; extend with PyTest.
