@@ -74,7 +74,7 @@ Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent>
 - Set:
   - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
   - `export UV_PUBLISH_TOKEN=<token_with_package_write>`
-- From repo root: `uv run poe publish` (uploads wheel/sdist for this agent).
+- From agent dir: `uv run poe publish` (uploads wheel/sdist for this agent), or from root: `uv run -C agents/<agent> poe publish`.
 
 ## What lives where
 - Agent-level (agents/<agent>): code, tests, Dockerfile, agent-specific tasks/config, LICENSE, README, built artifacts.

@@ -17,28 +17,21 @@ Example agent built from the python-agent-template. Use this as a starting point
 - Tests: `uv run poe test`
 
 ## Run from repo root (alternative)
- Run the agent without `cd`: `uv run -C agents/agent1 agent1 Alice --greeting hello`.
- Agent checks from root: `uv run -C agents/agent1 poe check`.
- Repo-wide checks: `uv run poe check`.
+- Run the agent without `cd`: `uv run -C agents/agent1 agent1 Alice --greeting hello`.
+- Agent checks from root: `uv run -C agents/agent1 poe check`.
+- Repo-wide checks: `uv run poe check`.
 
 ## Build the image (wheel-based)
 - Build the container (from `agents/agent1`): `docker build -t agent1:latest .`.
 - Run the container: `docker run --rm agent1:latest agent1 Bob` (override args as needed).
- Configure env vars for publishing:
-  - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
-  - `export UV_PUBLISH_TOKEN=<ghp_or_fine_grained_token_with_package_write>`
- Publish from repo root: `uv run poe publish` (uploads the built wheel/sdist to GitHub Packages). Replace `<owner>` with your GitHub user or org.
 
 ## Publish the package to GitHub Packages
 - Configure env vars for publishing:
- The package is published under the namespace `python_agent_template.agents.agent1`, following the PyPA namespace packaging guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/
- The namespace root `python_agent_template` (and its `agents` sub-namespace) have no `__init__.py`, allowing multiple agents to coexist; `agent1` is a regular package inside it.
-- Publish from repo root: `uv run poe publish` (uploads the built wheel/sdist to GitHub Packages). Replace `<owner>` with your GitHub user or org.
-
- `src/python_agent_template/agents/agent1/agent.py` — agent implementation.
- `tests/` — unit tests; extend with PyTest.
-- The `agents` namespace has no `__init__.py` so multiple agents can coexist without collisions; `agent1` is a regular package inside it.
+  - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
+  - `export UV_PUBLISH_TOKEN=<ghp_or_fine_grained_token_with_package_write>`
+- Publish from the agent dir (`agents/agent1`): `uv run poe publish` (uploads the built wheel/sdist). From repo root use `uv run -C agents/agent1 poe publish`.
+- Package namespace: `python_agent_template.agents.agent1` uses a namespace root without `__init__.py` so multiple agents can coexist (PyPA guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/).
 
 ## Anatomy
-- `src/agents/agent1/agent.py` — agent implementation.
+- `src/python_agent_template/agents/agent1/agent.py` — agent implementation.
 - `tests/` — unit tests; extend with PyTest.
