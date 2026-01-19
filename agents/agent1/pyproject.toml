@@ -82,6 +82,7 @@ include = "../../shared_tasks.toml"
 bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1"
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
 test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered"
+docs = "uv run python ../../scripts/generate_docs.py --agents-only --agents agent1"
 
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]

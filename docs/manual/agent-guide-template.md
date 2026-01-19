@@ -78,7 +78,10 @@ Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent>
 
 ## What lives where
 - Agent-level (agents/<agent>): code, tests, Dockerfile, agent-specific tasks/config, LICENSE, README, built artifacts.
-- Project-level (root): shared tasks, root `pyproject.toml`, shared scripts (`scripts/`), CI, global lint/type/test settings.
+- Docs (per-agent): `agents/<agent>/docs/source/` Sphinx inputs build to `agents/<agent>/docs/generated`.
+
+### Documentation builds
+- Refer to the dedicated docs build guide for commands, outputs, and CI recommendations: [docs/manual/docs-build-guide.md](docs/manual/docs-build-guide.md).
 
 ## Troubleshooting
 - uv missing: install via `curl -LsSf https://astral.sh/uv/install.sh | sh`.

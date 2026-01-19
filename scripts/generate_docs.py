@@ -1,12 +1,15 @@
-"""Generate docs using py2docfx for all agents in this workspace.
+"""Generate HTML docs for all agents using Sphinx (autodoc + napoleon).
 
-EXPERIMENTAL: py2docfx outputs docfx YAML, not markdown; this pipeline is not finalized and
-may change or be replaced.
+How the paths are used:
+- ``root``: repo root override (default: this repo root).
+- ``source``: agent-local Sphinx source (relative to each agent dir) or absolute.
+- ``output``: agent-local build output (relative to each agent dir) or absolute.
+- ``unified-source``: shared Sphinx source for the combined site (default ``docs/source``).
+- ``unified-output``: shared build output for the combined site (default ``docs/generated``).
 
-Path-based variant derived from the Agent Framework script:
-- Collect uv workspace members under ``agents/*``
-- Build a py2docfx package manifest with ``install_type=path`` per agent
-- Emit docfx-ready YAML into ``docs/``
+Flags:
+- ``--agents-only`` / ``--unified-only`` toggle which sites are built (default: build both).
+- ``--agents`` limits per-agent builds to the named agent directories.
 """
 
 # Copyright (c) Microsoft. All rights reserved.
@@ -34,49 +37,126 @@ Path-based variant derived from the Agent Framework script:
 from __future__ import annotations
 
 import argparse
-import asyncio
-import json
 import os
+import shutil
+import subprocess  # nosec B404 - subprocess used to invoke sphinx-build with controlled args
+import sys
+import logging
 from pathlib import Path
-from typing import Any
 
 import tomli
-from py2docfx.__main__ import main as py2docfx_main  # type: ignore[reportMissingImports]
-
 from utils.task_utils import discover_projects
 
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+logger = logging.getLogger(__name__)
 
-def load_package_name(agent_dir: Path) -> str:
+
+def clean_autosummary(source_dir: Path) -> None:
+    """Remove sphinx-autosummary cache so nav stays in sync."""
+
+    autosummary_dir = source_dir / "_autosummary"
+    if autosummary_dir.exists():
+        shutil.rmtree(autosummary_dir)
+    autosummary_dir.mkdir(parents=True, exist_ok=True)
+
+
+def load_module_name(agent_dir: Path) -> str:
+    """Return the importable module name for an agent.
+
+    Prefers ``tool.flit.module.name`` (used in this repo) and falls back to
+    ``project.name`` if not set.
+    """
+
     pyproject = agent_dir / "pyproject.toml"
     data = tomli.loads(pyproject.read_text(encoding="utf-8"))
+    module = data.get("tool", {}).get("flit", {}).get("module", {}).get("name")
+    if module:
+        return module
     return data.get("project", {}).get("name", agent_dir.name)
 
 
-def build_manifest(agent_dirs: list[Path]) -> dict[str, Any]:
-    """Build py2docfx package manifest using path installs for each agent."""
+def build_agent_docs(
+    root: Path,
+    agents: list[Path],
+    source: Path,
+    output: Path,
+    env: dict[str, str],
+) -> None:
+    """Build docs for each agent into its own output directory."""
 
-    packages: list[dict[str, Any]] = []
-    for agent_dir in agent_dirs:
-        name = load_package_name(agent_dir)
-        packages.append(
-            {
-                "package_info": {
-                    "name": name,
-                    "install_type": "source_code",
-                    "folder": str(agent_dir.resolve()),
-                },
-                "output_path": f"agents/{agent_dir.name}",
-            }
-        )
+    modules = [load_module_name(agent_dir) for agent_dir in agents]
 
-    return {
-        "packages": packages,
-        "required_packages": [],
-    }
+    logger.info("Discovered agents:")
+    for agent_dir, module in zip(agents, modules):
+        logger.info("- %s (module: %s)", agent_dir.name, module)
+
+    for agent_dir in agents:
+        source_dir = source if source.is_absolute() else agent_dir / source
+        if not source_dir.exists():
+            logger.warning("Skipping %s: no docs source at %s", agent_dir.name, source_dir)
+            continue
+
+        clean_autosummary(source_dir)
+
+        output_dir = output if output.is_absolute() else agent_dir / output
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        cmd = [
+            "sphinx-build",
+            "-b",
+            "html",
+            str(source_dir),
+            str(output_dir),
+        ]
+
+        subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
 
 
-async def generate_docs(root: Path, output: Path) -> None:
-    """Run py2docfx with the generated manifest."""
+def build_unified_docs(
+    root: Path,
+    source: Path,
+    output: Path,
+    env: dict[str, str],
+) -> None:
+    """Build the shared unified doc site."""
+
+    source_dir = source if source.is_absolute() else root / source
+    if not source_dir.exists():
+        logger.warning("Skipping unified docs: no source at %s", source_dir)
+        return
+
+    clean_autosummary(source_dir)
+
+    output_dir = output if output.is_absolute() else root / output
+    if output_dir.exists():
+        shutil.rmtree(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    cmd = [
+        "sphinx-build",
+        "-b",
+        "html",
+        str(source_dir),
+        str(output_dir),
+    ]
+
+    subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+
+
+def generate_docs(
+    root: Path,
+    source: Path,
+    output: Path,
+    unified_source: Path | None = None,
+    unified_output: Path | None = None,
+    build_agents: bool = True,
+    build_unified: bool = True,
+    agent_filter: list[str] | None = None,
+) -> None:
+    """Dispatch builds for per-agent sites and the unified site."""
 
     agent_dirs: list[Path] = []
     for project in discover_projects(root / "pyproject.toml"):
@@ -84,40 +164,54 @@ async def generate_docs(root: Path, output: Path) -> None:
         if (candidate / "pyproject.toml").exists():
             agent_dirs.append(candidate)
 
-    extra_paths = [str(root)] + [str(agent_dir) for agent_dir in agent_dirs]
-    os.environ["PYTHONPATH"] = os.pathsep.join(extra_paths + [os.environ.get("PYTHONPATH", "")])
-    manifest = build_manifest(agent_dirs)
+    if agent_filter:
+        agent_dirs = [agent_dir for agent_dir in agent_dirs if agent_dir.name in set(agent_filter)]
 
-    print("Discovered agents:")
-    for agent_dir in agent_dirs:
-        print(f"- {agent_dir.name}")
+    extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = os.pathsep.join(extra_paths + [env.get("PYTHONPATH", "")])
 
-    output_root = output if output.is_absolute() else root / output
-    output_root.mkdir(parents=True, exist_ok=True)
+    if build_agents:
+        build_agent_docs(root, agent_dirs, source, output, env)
 
-    # py2docfx defines the output option as "-o--output-root-folder" (concatenated), so we must use that literal.
-    args = [
-        "-o--output-root-folder",
-        str(output_root),
-        "-j",
-        json.dumps(manifest),
-        "--verbose",
-    ]
-    try:
-        await py2docfx_main(args)
-    except Exception as exc:  # pragma: no cover - logging only
-        print(f"Error generating documentation: {exc}")
+    if build_unified and unified_source and unified_output:
+        build_unified_docs(root, unified_source, unified_output, env)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=Path(__file__).resolve().parents[1], type=Path)
-    parser.add_argument("--output", default=Path("docs"), type=Path)
+    parser.add_argument("--source", default=Path("docs/source"), type=Path)
+    parser.add_argument("--output", default=Path("docs/generated"), type=Path)
+    parser.add_argument("--unified-source", default=Path("docs/source"), type=Path)
+    parser.add_argument("--unified-output", default=Path("docs/generated"), type=Path)
+    parser.add_argument("--agents-only", action="store_true", help="Build only per-agent docs")
+    parser.add_argument("--unified-only", action="store_true", help="Build only unified docs")
+    parser.add_argument("--agents", nargs="*", help="Limit doc build to specific agent directory names")
     args = parser.parse_args()
 
-    print(f"Current path: {args.root}")
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    logger.info("Current path: %s", args.root)
 
-    asyncio.run(generate_docs(args.root, args.output))
+    if args.agents_only and args.unified_only:
+        raise SystemExit("Cannot set both --agents-only and --unified-only")
+
+    build_agents = not args.unified_only
+    build_unified = not args.agents_only
+
+    try:
+        generate_docs(
+            args.root,
+            args.source,
+            args.output,
+            unified_source=args.unified_source,
+            unified_output=args.unified_output,
+            build_agents=build_agents,
+            build_unified=build_unified,
+            agent_filter=args.agents,
+        )
+    except Exception as exc:  # pragma: no cover - logging only
+        logger.error("Error generating documentation: %s", exc)
 
 
 if __name__ == "__main__":

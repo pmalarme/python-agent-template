@@ -49,8 +49,8 @@ dev = [
     "tomli-w>=1.0.0",
 ]
 docs = [
-    "py2docfx>=0.1.22.dev2259826",
-    "pip",
+    "sphinx>=7.4,<8",
+    "sphinx-autodoc-typehints>=2.2.1",
 ]
 
 [tool.uv]
@@ -196,8 +196,8 @@ test = "python scripts/run_tasks_in_agents_if_exists.py test"
 markdown-code-lint = "uv run python scripts/check_md_code_blocks.py README.md agents/**/README.md"
 pre-commit-install = "uv run pre-commit install --install-hooks --overwrite"
 install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --no-group=docs"
-# docs = "uv run python scripts/generate_docs.py"  # disabled: experimental docs pipeline
-# docs-install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --group docs"
+docs = "uv run python scripts/generate_docs.py"
+docs-install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --group docs"
 check = ["fmt", "lint", "pyright", "mypy", "bandit", "test", "markdown-code-lint"]
 # Optional release/publish helpers (commented out by default)
 # clean-dist-agents = "python scripts/run_tasks_in_agents_if_exists.py clean-dist"
