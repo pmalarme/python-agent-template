@@ -78,6 +78,8 @@ Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent>
 
 ## What lives where
 - Agent-level (agents/<agent>): code, tests, Dockerfile, agent-specific tasks/config, LICENSE, README, built artifacts.
+- Project-level (root): shared tasks, root pyproject, shared scripts (scripts/), CI, global lint/type/test settings.
+- Docs (root): `docs/source/` Sphinx inputs build to `docs/generated` for the unified site.
 - Docs (per-agent): `agents/<agent>/docs/source/` Sphinx inputs build to `agents/<agent>/docs/generated`.
 
 ### Documentation builds

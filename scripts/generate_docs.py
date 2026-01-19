@@ -58,7 +58,6 @@ def clean_autosummary(source_dir: Path) -> None:
     autosummary_dir = source_dir / "_autosummary"
     if autosummary_dir.exists():
         shutil.rmtree(autosummary_dir)
-    autosummary_dir.mkdir(parents=True, exist_ok=True)
 
 
 def load_module_name(agent_dir: Path) -> str:
@@ -183,8 +182,8 @@ def main() -> None:
     parser.add_argument("--root", default=Path(__file__).resolve().parents[1], type=Path)
     parser.add_argument("--source", default=Path("docs/source"), type=Path)
     parser.add_argument("--output", default=Path("docs/generated"), type=Path)
-    parser.add_argument("--unified-source", default=Path("docs/source"), type=Path)
-    parser.add_argument("--unified-output", default=Path("docs/generated"), type=Path)
+    parser.add_argument("--unified-source", default=ROOT / "docs/source", type=Path)
+    parser.add_argument("--unified-output", default=ROOT / "docs/generated", type=Path)
     parser.add_argument("--agents-only", action="store_true", help="Build only per-agent docs")
     parser.add_argument("--unified-only", action="store_true", help="Build only unified docs")
     parser.add_argument("--agents", nargs="*", help="Limit doc build to specific agent directory names")
@@ -212,6 +211,7 @@ def main() -> None:
         )
     except Exception as exc:  # pragma: no cover - logging only
         logger.error("Error generating documentation: %s", exc)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
