@@ -62,8 +62,8 @@ autodoc_default_options = {
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 
-templates_path = ["_templates"]
+templates_path: list[str] = []  # set to ["_templates"] when the directory is added
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "alabaster"
-html_static_path = ["_static"]
+html_static_path: list[str] = []  # set to ["_static"] when the directory is added

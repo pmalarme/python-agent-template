@@ -11,8 +11,19 @@ except ModuleNotFoundError:  # Python < 3.11
     except ModuleNotFoundError:
         tomllib = None  # type: ignore[assignment]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[4]
-AGENT_ROOT = Path(__file__).resolve().parents[1]
+THIS_FILE = Path(__file__).resolve()
+
+
+def _find_upwards(start: Path, marker: str = "pyproject.toml") -> Path:
+    """Return the first parent containing ``marker``; raise if none is found."""
+    for parent in [start, *start.parents]:
+        if (parent / marker).is_file():
+            return parent
+    raise FileNotFoundError(marker)
+
+
+AGENT_ROOT = _find_upwards(THIS_FILE)
+PROJECT_ROOT = _find_upwards(AGENT_ROOT.parent)
 sys.path.insert(0, str(PROJECT_ROOT))
 for src_path in PROJECT_ROOT.glob("agents/*/src"):
     sys.path.insert(0, str(src_path))
@@ -59,8 +70,9 @@ autodoc_default_options = {
 napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 
-templates_path = ["_templates"]
+# set to ["_templates"] when the directory is added
+templates_path: list[str] = []
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 html_theme = "alabaster"
-html_static_path = ["_static"]
+html_static_path: list[str] = []  # set to ["_static"] when the directory is added

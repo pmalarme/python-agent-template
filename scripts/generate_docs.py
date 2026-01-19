@@ -42,6 +42,7 @@ import shutil
 import subprocess  # nosec B404 - subprocess used to invoke sphinx-build with controlled args
 import sys
 import logging
+from shutil import which
 from pathlib import Path
 
 import tomli
@@ -63,16 +64,32 @@ def clean_autosummary(source_dir: Path) -> None:
 def load_module_name(agent_dir: Path) -> str:
     """Return the importable module name for an agent.
 
-    Prefers ``tool.flit.module.name`` (used in this repo) and falls back to
-    ``project.name`` if not set.
+    Prefers the ``name`` field in the ``[tool.flit.module]`` table (used in this
+    repo) and falls back to ``project.name`` if not set.
     """
 
     pyproject = agent_dir / "pyproject.toml"
-    data = tomli.loads(pyproject.read_text(encoding="utf-8"))
+    if not pyproject.is_file():
+        return agent_dir.name
+
+    try:
+        data = tomli.loads(pyproject.read_text(encoding="utf-8"))
+    except Exception:
+        return agent_dir.name
+
     module = data.get("tool", {}).get("flit", {}).get("module", {}).get("name")
     if module:
         return module
     return data.get("project", {}).get("name", agent_dir.name)
+
+
+def ensure_sphinx_available() -> None:
+    """Raise a helpful error if sphinx-build is not on PATH."""
+
+    if which("sphinx-build") is None:
+        raise FileNotFoundError(
+            "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
+        )
 
 
 def build_agent_docs(
@@ -83,12 +100,12 @@ def build_agent_docs(
     env: dict[str, str],
 ) -> None:
     """Build docs for each agent into its own output directory."""
+    if logger.isEnabledFor(logging.INFO):
+        modules = [load_module_name(agent_dir) for agent_dir in agents]
 
-    modules = [load_module_name(agent_dir) for agent_dir in agents]
-
-    logger.info("Discovered agents:")
-    for agent_dir, module in zip(agents, modules):
-        logger.info("- %s (module: %s)", agent_dir.name, module)
+        logger.info("Discovered agents:")
+        for agent_dir, module in zip(agents, modules):
+            logger.info("- %s (module: %s)", agent_dir.name, module)
 
     for agent_dir in agents:
         source_dir = source if source.is_absolute() else agent_dir / source
@@ -111,7 +128,12 @@ def build_agent_docs(
             str(output_dir),
         ]
 
-        subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+        try:
+            subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+        except FileNotFoundError as exc:
+            raise FileNotFoundError(
+                "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
+            ) from exc
 
 
 def build_unified_docs(
@@ -142,7 +164,12 @@ def build_unified_docs(
         str(output_dir),
     ]
 
-    subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+    try:
+        subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+    except FileNotFoundError as exc:
+        raise FileNotFoundError(
+            "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
+        ) from exc
 
 
 def generate_docs(
@@ -199,6 +226,7 @@ def main() -> None:
     build_unified = not args.agents_only
 
     try:
+        ensure_sphinx_available()
         generate_docs(
             args.root,
             args.source,
