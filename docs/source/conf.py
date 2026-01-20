@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
 
@@ -18,6 +19,7 @@ for src_path in PROJECT_ROOT.glob("agents/*/src"):
 
 project = "python-agent-template"
 author = "python-agent-template maintainers"
+logger = logging.getLogger(__name__)
 
 
 def _get_project_version(default: str = "0.0.0") -> str:
@@ -30,7 +32,8 @@ def _get_project_version(default: str = "0.0.0") -> str:
     try:
         with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except (tomllib.TOMLDecodeError, OSError) as exc:
+        logger.warning("Failed to read %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
     version = (
@@ -48,8 +51,15 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinx_autodoc_typehints",
 ]
+
+try:
+    if tomllib is not None:
+        # Only enable when the TOML parser (and therefore the extension's deps) is available.
+        import sphinx_autodoc_typehints  # noqa: F401
+        extensions.append("sphinx_autodoc_typehints")
+except Exception:
+    logger.warning("sphinx_autodoc_typehints not enabled; dependency stack missing.", exc_info=True)
 
 autosummary_generate = True
 autodoc_typehints = "description"

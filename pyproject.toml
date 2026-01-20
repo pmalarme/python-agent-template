@@ -51,6 +51,7 @@ dev = [
 docs = [
     "sphinx>=7.4,<8",
     "sphinx-autodoc-typehints>=2.2.1",
+    "tomli>=2.0.1",
 ]
 
 [tool.uv]

@@ -42,7 +42,6 @@ import shutil
 import subprocess  # nosec B404 - subprocess used to invoke sphinx-build with controlled args
 import sys
 import logging
-from shutil import which
 from pathlib import Path
 
 import tomli
@@ -51,6 +50,7 @@ from utils.task_utils import discover_projects
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 logger = logging.getLogger(__name__)
+SPHINX_MISSING_MSG = "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
 
 
 def clean_autosummary(source_dir: Path) -> None:
@@ -73,8 +73,21 @@ def load_module_name(agent_dir: Path) -> str:
         return agent_dir.name
 
     try:
-        data = tomli.loads(pyproject.read_text(encoding="utf-8"))
-    except Exception:
+        text = pyproject.read_text(encoding="utf-8")
+        data = tomli.loads(text)
+    except tomli.TOMLDecodeError:
+        logger.warning(
+            "Failed to parse pyproject.toml in %s; falling back to directory name.",
+            agent_dir,
+            exc_info=True,
+        )
+        return agent_dir.name
+    except OSError:
+        logger.warning(
+            "Failed to read pyproject.toml in %s; falling back to directory name.",
+            agent_dir,
+            exc_info=True,
+        )
         return agent_dir.name
 
     module = data.get("tool", {}).get("flit", {}).get("module", {}).get("name")
@@ -86,10 +99,8 @@ def load_module_name(agent_dir: Path) -> str:
 def ensure_sphinx_available() -> None:
     """Raise a helpful error if sphinx-build is not on PATH."""
 
-    if which("sphinx-build") is None:
-        raise FileNotFoundError(
-            "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
-        )
+    if shutil.which("sphinx-build") is None:
+        raise FileNotFoundError(SPHINX_MISSING_MSG)
 
 
 def build_agent_docs(
@@ -131,9 +142,7 @@ def build_agent_docs(
         try:
             subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
         except FileNotFoundError as exc:
-            raise FileNotFoundError(
-                "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
-            ) from exc
+            raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
 
 
 def build_unified_docs(
@@ -167,9 +176,7 @@ def build_unified_docs(
     try:
         subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
     except FileNotFoundError as exc:
-        raise FileNotFoundError(
-            "sphinx-build not found on PATH; install docs dependencies (uv sync --group docs)."
-        ) from exc
+        raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
 
 
 def generate_docs(

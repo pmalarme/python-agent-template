@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import logging
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 try:
     import tomllib
@@ -19,6 +22,7 @@ def _find_upwards(start: Path, marker: str = "pyproject.toml") -> Path:
     for parent in [start, *start.parents]:
         if (parent / marker).is_file():
             return parent
+    logger.debug("%s not found starting at %s", marker, start)
     raise FileNotFoundError(marker)
 
 
@@ -41,7 +45,11 @@ def _get_project_version(default: str = "0.0.0") -> str:
     try:
         with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
-    except Exception:
+    except OSError as exc:
+        logger.warning("Failed to read %s; falling back to default version.", pyproject_path, exc_info=exc)
+        return default
+    except Exception as exc:
+        logger.warning("Failed to parse %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
     version = data.get("project", {}).get("version") or data.get("tool", {}).get("poetry", {}).get("version")
@@ -56,8 +64,17 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinx.ext.viewcode",
-    "sphinx_autodoc_typehints",
 ]
+
+try:
+    if tomllib is not None:
+        # Only enable when the TOML parser (and therefore the extension's deps) is available.
+        import sphinx_autodoc_typehints
+
+        _ = sphinx_autodoc_typehints  # appease static analyzers about usage
+        extensions.append("sphinx_autodoc_typehints")
+except Exception:
+    logger.warning("sphinx_autodoc_typehints not enabled; dependency stack missing.", exc_info=True)
 
 autosummary_generate = True
 autodoc_typehints = "description"
