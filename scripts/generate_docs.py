@@ -295,9 +295,10 @@ def generate_docs(
     if not agent_dirs:
         if filter_set:
             logger.warning("No agents matched filter %s; skipping per-agent build.", sorted(filter_set))
+            raise SystemExit("No agents matched the provided filter; nothing to build.")
         else:
             logger.warning("No agent projects found; skipping per-agent build.")
-        return
+            raise SystemExit("No agent projects found; nothing to build.")
 
     extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
     env = os.environ.copy()
