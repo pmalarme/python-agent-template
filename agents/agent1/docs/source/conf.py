@@ -23,7 +23,9 @@ def _find_upwards(start: Path, marker: str = "pyproject.toml") -> Path:
         if (parent / marker).is_file():
             return parent
     logger.debug("%s not found starting at %s", marker, start)
-    raise FileNotFoundError(marker)
+    err = FileNotFoundError(marker)
+    err.add_note(f"search start: {start}")
+    raise err
 
 
 AGENT_ROOT = _find_upwards(THIS_FILE)
@@ -48,7 +50,7 @@ def _get_project_version(default: str = "0.0.0") -> str:
     except OSError as exc:
         logger.warning("Failed to read %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
-    except Exception as exc:
+    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
         logger.warning("Failed to parse %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
