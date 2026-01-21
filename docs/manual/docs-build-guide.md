@@ -24,7 +24,7 @@ How to build API docs for the template and each agent.
 
 ## Path overrides (rarely needed)
 - `--root`: repo root override
-- `--source` / `--output`: agent-local source/output (relative to each agent unless absolute)
+- `--agent-source` / `--agent-output`: agent-local source/output (relative to each agent unless absolute)
 - `--unified-source` / `--unified-output`: unified source/output (relative to repo unless absolute)
 
 ## Best practices

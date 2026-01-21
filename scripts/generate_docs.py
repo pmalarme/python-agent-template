@@ -141,6 +141,7 @@ def build_agent_docs(
 
         try:
             # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
+            # Only catch a missing sphinx-build binary; Sphinx build failures propagate so users see the raw error.
             subprocess.run(
                 cmd,
                 check=True,
@@ -183,6 +184,7 @@ def build_unified_docs(
 
     try:
         # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
+        # Only catch a missing sphinx-build binary; Sphinx build failures propagate so users see the raw error.
         subprocess.run(
             cmd,
             check=True,
@@ -279,14 +281,23 @@ def generate_docs(
 ) -> None:
     """Dispatch builds for per-agent sites and the unified site."""
 
+    filter_set = set(agent_filter) if agent_filter else None
+
     agent_dirs: list[Path] = []
     for project in discover_projects(root / "pyproject.toml"):
         candidate = project if project.is_absolute() else root / project
-        if (candidate / "pyproject.toml").exists():
-            agent_dirs.append(candidate)
+        if not (candidate / "pyproject.toml").exists():
+            continue
+        if filter_set and candidate.name not in filter_set:
+            continue
+        agent_dirs.append(candidate)
 
-    if agent_filter:
-        agent_dirs = [agent_dir for agent_dir in agent_dirs if agent_dir.name in set(agent_filter)]
+    if not agent_dirs:
+        if filter_set:
+            logger.warning("No agents matched filter %s; skipping per-agent build.", sorted(filter_set))
+        else:
+            logger.warning("No agent projects found; skipping per-agent build.")
+        return
 
     extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
     env = os.environ.copy()
