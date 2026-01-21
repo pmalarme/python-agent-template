@@ -45,7 +45,7 @@ repos:
         name: Run checks through Poe
         entry: uv run poe pre-commit-check
         language: system
-        files: "^(agents/|scripts/)"
+        files: "^(agents/|scripts/|docs/|README\\.md)"
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.5
