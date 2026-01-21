@@ -300,6 +300,7 @@ def generate_docs(
             logger.warning("No agent projects found; skipping per-agent build.")
             raise SystemExit("No agent projects found; nothing to build.")
 
+    # agent_dirs is guaranteed non-empty here (early return above).
     extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(extra_paths + [env.get("PYTHONPATH", "")])
