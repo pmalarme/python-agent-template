@@ -32,8 +32,11 @@ def _get_project_version(default: str = "0.0.0") -> str:
     try:
         with pyproject_path.open("rb") as f:
             data = tomllib.load(f)
-    except (tomllib.TOMLDecodeError, OSError) as exc:
+    except OSError as exc:
         logger.warning("Failed to read %s; falling back to default version.", pyproject_path, exc_info=exc)
+        return default
+    except tomllib.TOMLDecodeError as exc:  # type: ignore[union-attr]
+        logger.warning("Failed to parse %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
     version = (
