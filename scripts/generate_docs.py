@@ -303,7 +303,10 @@ def generate_docs(
     # agent_dirs is guaranteed non-empty here (early return above).
     extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
     env = os.environ.copy()
-    env["PYTHONPATH"] = os.pathsep.join(extra_paths + [env.get("PYTHONPATH", "")])
+    existing_pythonpath = env.get("PYTHONPATH")
+    if existing_pythonpath:
+        extra_paths.append(existing_pythonpath)
+    env["PYTHONPATH"] = os.pathsep.join(extra_paths)
 
     if build_agents:
         build_agent_docs(root, agent_dirs, source, output, env)
