@@ -24,7 +24,8 @@ def _find_upwards(start: Path, marker: str = "pyproject.toml") -> Path:
             return parent
     logger.debug("%s not found starting at %s", marker, start)
     err = FileNotFoundError(marker)
-    err.add_note(f"search start: {start}")
+    if hasattr(err, "add_note"):
+        err.add_note(f"search start: {start}")
     raise err
 
 
@@ -71,6 +72,7 @@ extensions = [
 try:
     if tomllib is not None:
         # Only enable when the TOML parser (and therefore the extension's deps) is available.
+        # Import is intentionally unused; it fails fast if the dependency stack is missing.
         import sphinx_autodoc_typehints
 
         _ = sphinx_autodoc_typehints  # appease static analyzers about usage

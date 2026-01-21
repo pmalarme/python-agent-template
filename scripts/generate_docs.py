@@ -1,9 +1,9 @@
 """Generate HTML docs for all agents using Sphinx (autodoc + napoleon).
 
 How the paths are used:
-- ``root``: repo root override (default: this repo root).
-- ``source``: agent-local Sphinx source (relative to each agent dir) or absolute.
-- ``output``: agent-local build output (relative to each agent dir) or absolute.
+- ``root``: repository root override (default: this repo root).
+- ``agent-source``: agent-local Sphinx source (relative to each agent dir) or absolute.
+- ``agent-output``: agent-local build output (relative to each agent dir) or absolute.
 - ``unified-source``: shared Sphinx source for the combined site (default ``docs/source``).
 - ``unified-output``: shared build output for the combined site (default ``docs/generated``).
 
@@ -140,7 +140,15 @@ def build_agent_docs(
         ]
 
         try:
-            subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+            # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
+            subprocess.run(
+                cmd,
+                check=True,
+                cwd=root,
+                env=env,
+                stdout=None,
+                stderr=None,
+            )  # nosec B603 - command args are static and trusted
         except FileNotFoundError as exc:
             raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
 
@@ -174,17 +182,97 @@ def build_unified_docs(
     ]
 
     try:
-        subprocess.run(cmd, check=True, cwd=root, env=env)  # nosec B603 - command args are static and trusted
+        # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
+        subprocess.run(
+            cmd,
+            check=True,
+            cwd=root,
+            env=env,
+            stdout=None,
+            stderr=None,
+        )  # nosec B603 - command args are static and trusted
     except FileNotFoundError as exc:
         raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
+
+
+def validate_build_paths(
+    build_agents: bool,
+    build_unified: bool,
+    agent_source: Path | None,
+    agent_output: Path | None,
+    unified_source: Path | None,
+    unified_output: Path | None,
+) -> None:
+    """Ensure required paths are present before triggering builds."""
+
+    if build_agents and (agent_source is None or agent_output is None):
+        raise SystemExit("Per-agent build requires both agent_source and agent_output paths.")
+
+    if build_unified and (unified_source is None or unified_output is None):
+        raise SystemExit("Unified build requires both unified_source and unified_output paths.")
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Return the CLI argument parser for docs generation."""
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--root",
+        default=ROOT,
+        type=Path,
+        help="Repository root to search for agents and resolve unified docs paths (default: repo root).",
+    )
+    parser.add_argument(
+        "--agent-source",
+        default=Path("docs/source"),
+        type=Path,
+        help=(
+            "Per-agent docs source directory. "
+            "If relative, it is interpreted relative to each agent directory "
+            "(default: docs/source)."
+        ),
+    )
+    parser.add_argument(
+        "--agent-output",
+        default=Path("docs/generated"),
+        type=Path,
+        help=(
+            "Per-agent docs build output directory. "
+            "If relative, it is interpreted relative to each agent directory "
+            "(default: docs/generated)."
+        ),
+    )
+    parser.add_argument(
+        "--unified-source",
+        default=ROOT / "docs/source",
+        type=Path,
+        help=(
+            "Unified docs source directory, resolved from the repository root "
+            f"(default: {ROOT / 'docs/source'})."
+        ),
+    )
+    parser.add_argument(
+        "--unified-output",
+        default=ROOT / "docs/generated",
+        type=Path,
+        help=(
+            "Unified docs build output directory, resolved from the repository root "
+            f"(default: {ROOT / 'docs/generated'})."
+        ),
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--agents-only", action="store_true", help="Build only per-agent docs")
+    group.add_argument("--unified-only", action="store_true", help="Build only unified docs")
+    parser.add_argument("--agents", nargs="*", help="Limit doc build to specific agent directory names")
+    return parser
 
 
 def generate_docs(
     root: Path,
     source: Path,
     output: Path,
-    unified_source: Path | None = None,
-    unified_output: Path | None = None,
+    unified_source: Path,
+    unified_output: Path,
     build_agents: bool = True,
     build_unified: bool = True,
     agent_filter: list[str] | None = None,
@@ -207,37 +295,35 @@ def generate_docs(
     if build_agents:
         build_agent_docs(root, agent_dirs, source, output, env)
 
-    if build_unified and unified_source and unified_output:
+    if build_unified:
         build_unified_docs(root, unified_source, unified_output, env)
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", default=Path(__file__).resolve().parents[1], type=Path)
-    parser.add_argument("--source", default=Path("docs/source"), type=Path)
-    parser.add_argument("--output", default=Path("docs/generated"), type=Path)
-    parser.add_argument("--unified-source", default=ROOT / "docs/source", type=Path)
-    parser.add_argument("--unified-output", default=ROOT / "docs/generated", type=Path)
-    parser.add_argument("--agents-only", action="store_true", help="Build only per-agent docs")
-    parser.add_argument("--unified-only", action="store_true", help="Build only unified docs")
-    parser.add_argument("--agents", nargs="*", help="Limit doc build to specific agent directory names")
+    parser = build_parser()
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logger.info("Current path: %s", args.root)
 
-    if args.agents_only and args.unified_only:
-        raise SystemExit("Cannot set both --agents-only and --unified-only")
-
     build_agents = not args.unified_only
     build_unified = not args.agents_only
+
+    validate_build_paths(
+        build_agents,
+        build_unified,
+        args.agent_source,
+        args.agent_output,
+        args.unified_source,
+        args.unified_output,
+    )
 
     try:
         ensure_sphinx_available()
         generate_docs(
             args.root,
-            args.source,
-            args.output,
+            args.agent_source,
+            args.agent_output,
             unified_source=args.unified_source,
             unified_output=args.unified_output,
             build_agents=build_agents,
