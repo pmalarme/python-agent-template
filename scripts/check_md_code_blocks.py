@@ -2,7 +2,7 @@
 
 What it does:
 - Expands glob patterns (unless --no-glob) to find Markdown files.
-- Extracts ```python fences and runs pyright on each block via uv; highlights failures with pygments.
+- Extracts ```python fences and runs pyright and ruff on each block via uv; highlights failures with pygments.
 - Supports --exclude patterns to skip paths and --no-glob to treat inputs literally.
 
 Derived from https://github.com/microsoft/agent-framework/ (MIT).
@@ -33,18 +33,18 @@ Derived from https://github.com/microsoft/agent-framework/ (MIT).
 from __future__ import annotations
 
 import argparse
-from enum import Enum
 import glob
 import logging
 import os
+import shutil
+import subprocess  # noqa: S404  # nosec B404
 import tempfile
-import subprocess  # nosec
+from enum import Enum
 from typing import Any, cast
 
-from pygments import highlight  # type: ignore
+from pygments import highlight  # type: ignore[import-not-found]
 from pygments.formatters import TerminalFormatter
-from pygments.lexers import PythonLexer  # type: ignore[reportUnknownVariableType]
-
+from pygments.lexers import PythonLexer  # type: ignore[import-not-found]
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler())
@@ -52,6 +52,8 @@ logger.setLevel(logging.INFO)
 
 
 class Colors(str, Enum):
+    """ANSI color codes for terminal output."""
+
     CEND = "\33[0m"
     CRED = "\33[31m"
     CREDBG = "\33[41m"
@@ -63,7 +65,6 @@ class Colors(str, Enum):
 
 def with_color(text: str, color: Colors) -> str:
     """Render text with ANSI color codes."""
-
     return f"{color.value}{text}{Colors.CEND.value}"
 
 
@@ -77,7 +78,6 @@ def expand_file_patterns(patterns: list[str], skip_glob: bool = False) -> list[s
     Returns:
         A sorted list of unique markdown file paths.
     """
-
     all_files: list[str] = []
     for pattern in patterns:
         if skip_glob:
@@ -99,7 +99,6 @@ def extract_python_code_blocks(markdown_file_path: str) -> list[tuple[str, int]]
     Returns:
         A list of tuples ``(code_block, starting_line_number)``.
     """
-
     with open(markdown_file_path, encoding="utf-8") as file:
         lines = file.readlines()
 
@@ -124,7 +123,7 @@ def check_code_blocks(
     markdown_file_paths: list[str],
     exclude_patterns: list[str] | None = None,
 ) -> None:
-    """Check Python code blocks in Markdown files by running pyright on each block.
+    """Check Python code blocks in Markdown files by running pyright and ruff on each block.
 
     Args:
         markdown_file_paths: Markdown files to inspect.
@@ -133,7 +132,6 @@ def check_code_blocks(
     Raises:
         RuntimeError: If any checked file contains a failing Python block.
     """
-
     files_with_errors: list[str] = []
     exclude_patterns = exclude_patterns or []
 
@@ -156,34 +154,54 @@ def check_code_blocks(
                     temp_file.flush()
                     tmp_path = temp_file.name
 
-                result = subprocess.run(
-                    ["uv", "run", "pyright", tmp_path],
-                    capture_output=True,
-                    text=True,
-                    cwd=".",
-                )  # nosec
+                uv_executable = shutil.which("uv") or "uv"
+                checks = [
+                    ("Pyright", [uv_executable, "run", "pyright", tmp_path]),
+                    (
+                        "Ruff",
+                        [
+                            uv_executable,
+                            "run",
+                            "ruff",
+                            "check",
+                            "--extend-ignore",
+                            "INP001",  # temp file is not a package; avoid implicit-namespace warning
+                            tmp_path,
+                        ],
+                    ),
+                ]
 
-                if result.returncode != 0:
-                    lexer = cast(Any, PythonLexer())
-                    formatter = cast(Any, TerminalFormatter())
-                    highlighted_code: str = highlight(code_block, lexer, formatter)
-                    logger.info(
-                        " %s\n%s\n%s\n%s\n%s\n\n%s\n%s%s\n",
-                        with_color("FAIL", Colors.CREDBG),
-                        with_color("========================================================", Colors.CGREY),
-                        with_color(
-                            f"Error: Pyright found issues in {with_color(markdown_file_path_with_line_no, Colors.CVIOLET)}",
-                            Colors.CRED,
-                        ),
-                        with_color("--------------------------------------------------------", Colors.CGREY),
-                        highlighted_code,
-                        with_color("pyright output:", Colors.CVIOLET),
-                        with_color(result.stdout, Colors.CRED),
-                        with_color("========================================================", Colors.CGREY),
+                for tool_name, uv_cmd in checks:
+                    result = subprocess.run(  # noqa: S603  # nosec B603
+                        uv_cmd,
+                        capture_output=True,
+                        text=True,
+                        cwd=".",
+                        check=False,
                     )
-                    had_errors = True
-                else:
-                    logger.info(" %s", with_color("OK", Colors.CGREENBG))
+
+                    if result.returncode != 0:
+                        lexer = cast(Any, PythonLexer())
+                        formatter = cast(Any, TerminalFormatter())
+                        highlighted_code: str = highlight(code_block, lexer, formatter)
+                        logger.info(
+                            " %s\n%s\n%s\n%s\n%s\n\n%s\n%s%s\n",
+                            with_color("FAIL", Colors.CREDBG),
+                            with_color("========================================================", Colors.CGREY),
+                            with_color(
+                                f"Error: {tool_name} found issues in "
+                                f"{with_color(markdown_file_path_with_line_no, Colors.CVIOLET)}",
+                                Colors.CRED,
+                            ),
+                            with_color("--------------------------------------------------------", Colors.CGREY),
+                            highlighted_code,
+                            with_color(f"{tool_name.lower()} output:", Colors.CVIOLET),
+                            with_color(result.stdout, Colors.CRED),
+                            with_color("========================================================", Colors.CGREY),
+                        )
+                        had_errors = True
+                    else:
+                        logger.info(" %s %s", tool_name, with_color("OK", Colors.CGREENBG))
             finally:
                 if tmp_path:
                     try:
@@ -199,18 +217,19 @@ def check_code_blocks(
 
 
 def main() -> None:
-    """Parse CLI arguments and run pyright checks on python fences in markdown files.
+    """Parse CLI arguments and run pyright and ruff on python fences in markdown files.
 
     CLI:
         markdown_files (list[str]): Markdown files or glob patterns.
         --exclude (str, repeatable): Skip files whose path contains this substring.
         --no-glob (flag): Treat inputs as literal paths (no glob expansion).
     """
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("markdown_files", nargs="+", help="Markdown files to check (supports glob patterns).")
     parser.add_argument("--exclude", action="append", help="Exclude files containing this pattern.")
-    parser.add_argument("--no-glob", action="store_true", help="Treat file arguments as literal paths (no glob expansion).")
+    parser.add_argument(
+        "--no-glob", action="store_true", help="Treat file arguments as literal paths (no glob expansion)."
+    )
     args = parser.parse_args()
 
     expanded_files = expand_file_patterns(args.markdown_files, skip_glob=args.no_glob)

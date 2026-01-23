@@ -37,16 +37,16 @@ Derived from https://github.com/microsoft/agent-framework/ (MIT) and adapted for
 from __future__ import annotations
 
 import argparse
-import subprocess  # nosec B404 - use git via fixed arg lists; avoids extra deps like GitPython
+import subprocess  # noqa: S404  # nosec B404
 import sys
 from pathlib import Path
 
 from poethepoet.app import PoeThePoet
 from rich import print
-
 from utils.task_utils import discover_projects, extract_poe_tasks
 
 ROOT = Path(__file__).resolve().parent.parent
+
 
 def git_changed_files(base_ref: str) -> list[str]:
     """Get changed files via git diff, trying a couple of fallbacks.
@@ -57,14 +57,13 @@ def git_changed_files(base_ref: str) -> list[str]:
     Returns:
         A list of changed file paths (relative to repo root) or an empty list on failure.
     """
-
     candidates = [
         ["git", "diff", "--name-only", f"{base_ref}...HEAD", "--"],
         ["git", "diff", "--name-only", "HEAD~1", "--"],
     ]
     for command in candidates:
         try:
-            output = subprocess.check_output(command, cwd=ROOT, text=True)  # nosec B603 - fixed args, shell=False, ref-only input
+            output = subprocess.check_output(command, cwd=ROOT, text=True)  # noqa: S603  # nosec B603
         except subprocess.CalledProcessError:
             continue
         if output.strip():
@@ -83,7 +82,6 @@ def get_changed_projects(projects: list[Path], changed_files: list[str], workspa
     Returns:
         A set of project Paths that contain at least one changed file.
     """
-
     changed_projects: set[Path] = set()
 
     for file_path in changed_files:
@@ -113,7 +111,6 @@ def main() -> None:
         files (list[str], optional): Changed file paths; if omitted, git diff is used.
         --base-ref (str): Base ref for git diff fallback (default: origin/main).
     """
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("task", help="The task name to run")
     parser.add_argument("files", nargs="*", help="Changed files to determine which agents to run")

@@ -52,7 +52,6 @@ def discover_projects(workspace_pyproject_file: Path) -> list[Path]:
     Returns:
         A list of Paths to each discovered project directory.
     """
-
     with workspace_pyproject_file.open("rb") as f:
         data = tomli.load(f)
 
@@ -90,7 +89,6 @@ def extract_poe_tasks(file: Path) -> set[str]:
     Returns:
         A set of Poe task names defined across the file (and any included file).
     """
-
     with file.open("rb") as f:
         data = tomli.load(f)
 
