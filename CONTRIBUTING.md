@@ -1,6 +1,10 @@
 # Contributing to python-agent-template
 
+<!-- Portions inspired by Microsoft's agent-framework CONTRIBUTING.md (MIT): https://github.com/microsoft/agent-framework/blob/main/CONTRIBUTING.md -->
+
 Thank you for your interest in contributing to the `python-agent-template` project! We welcome contributions from the community to help improve and enhance this project. You can contribute in various ways, including reporting issues, suggesting new features and improvements, or submitting code changes through pull requests.
+
+
 
 ## Community guidelines
 
