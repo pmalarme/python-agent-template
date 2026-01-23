@@ -70,8 +70,11 @@ no_implicit_optional = true
 show_error_codes = true
 
 [tool.bandit]
-targets = ["src/python_agent_template/agents/agent1"]
-exclude_dirs = ["tests"]
+targets = [
+    "src/python_agent_template/agents/agent1",
+    "docs/source",
+]
+exclude_dirs = ["tests", "docs/generated"]
 
 [tool.poe]
 executor.type = "uv"
@@ -79,8 +82,8 @@ include = "../../shared_tasks.toml"
 
 [tool.poe.tasks]
 # Project-specific overrides to scope checks/coverage to this agent; shared tasks remain available for cross-agent runs
-bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1"
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
+bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1 docs/source"
 test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered"
 docs = "uv run python ../../scripts/generate_docs.py --agents-only --agents agent1"
 

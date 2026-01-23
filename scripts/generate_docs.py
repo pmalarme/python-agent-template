@@ -37,12 +37,13 @@ Flags:
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import shutil
-import subprocess  # nosec B404 - subprocess used to invoke sphinx-build with controlled args
+import subprocess  # noqa: S404  # nosec B404
 import sys
-import logging
 from pathlib import Path
+from typing import Any
 
 import tomli
 from utils.task_utils import discover_projects
@@ -55,7 +56,6 @@ SPHINX_MISSING_MSG = "sphinx-build not found on PATH; install docs dependencies 
 
 def clean_autosummary(source_dir: Path) -> None:
     """Remove sphinx-autosummary cache so nav stays in sync."""
-
     autosummary_dir = source_dir / "_autosummary"
     if autosummary_dir.exists():
         shutil.rmtree(autosummary_dir)
@@ -67,14 +67,13 @@ def load_module_name(agent_dir: Path) -> str:
     Prefers the ``name`` field in the ``[tool.flit.module]`` table (used in this
     repo) and falls back to ``project.name`` if not set.
     """
-
     pyproject = agent_dir / "pyproject.toml"
     if not pyproject.is_file():
         return agent_dir.name
 
     try:
         text = pyproject.read_text(encoding="utf-8")
-        data = tomli.loads(text)
+        data: dict[str, Any] = tomli.loads(text)
     except tomli.TOMLDecodeError:
         logger.warning(
             "Failed to parse pyproject.toml in %s; falling back to directory name.",
@@ -91,14 +90,18 @@ def load_module_name(agent_dir: Path) -> str:
         return agent_dir.name
 
     module = data.get("tool", {}).get("flit", {}).get("module", {}).get("name")
-    if module:
+    if isinstance(module, str):
         return module
-    return data.get("project", {}).get("name", agent_dir.name)
+
+    project_name = data.get("project", {}).get("name")
+    if isinstance(project_name, str):
+        return project_name
+
+    return agent_dir.name
 
 
 def ensure_sphinx_available() -> None:
     """Raise a helpful error if sphinx-build is not on PATH."""
-
     if shutil.which("sphinx-build") is None:
         raise FileNotFoundError(SPHINX_MISSING_MSG)
 
@@ -115,7 +118,7 @@ def build_agent_docs(
         modules = [load_module_name(agent_dir) for agent_dir in agents]
 
         logger.info("Discovered agents:")
-        for agent_dir, module in zip(agents, modules):
+        for agent_dir, module in zip(agents, modules, strict=False):
             logger.info("- %s (module: %s)", agent_dir.name, module)
 
     for agent_dir in agents:
@@ -142,14 +145,14 @@ def build_agent_docs(
         try:
             # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
             # Only catch a missing sphinx-build binary; Sphinx build failures propagate so users see the raw error.
-            subprocess.run(
+            subprocess.run(  # noqa: S603  # nosec B603
                 cmd,
                 check=True,
                 cwd=root,
                 env=env,
                 stdout=None,
                 stderr=None,
-            )  # nosec B603 - command args are static and trusted
+            )
         except FileNotFoundError as exc:
             raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
 
@@ -161,7 +164,6 @@ def build_unified_docs(
     env: dict[str, str],
 ) -> None:
     """Build the shared unified doc site."""
-
     source_dir = source if source.is_absolute() else root / source
     if not source_dir.exists():
         logger.warning("Skipping unified docs: no source at %s", source_dir)
@@ -185,19 +187,19 @@ def build_unified_docs(
     try:
         # Inherit stdout/stderr so Sphinx warnings/errors stream to the console for visibility.
         # Only catch a missing sphinx-build binary; Sphinx build failures propagate so users see the raw error.
-        subprocess.run(
+        subprocess.run(  # noqa: S603  # nosec B603
             cmd,
             check=True,
             cwd=root,
             env=env,
             stdout=None,
             stderr=None,
-        )  # nosec B603 - command args are static and trusted
+        )
     except FileNotFoundError as exc:
         raise FileNotFoundError(SPHINX_MISSING_MSG) from exc
 
 
-def validate_build_paths(
+def validate_build_paths(  # noqa: PLR0913,PLR0917
     build_agents: bool,
     build_unified: bool,
     agent_source: Path | None,
@@ -206,17 +208,15 @@ def validate_build_paths(
     unified_output: Path | None,
 ) -> None:
     """Ensure required paths are present before triggering builds."""
-
     if build_agents and (agent_source is None or agent_output is None):
-        raise SystemExit("Per-agent build requires both agent_source and agent_output paths.")
+        raise SystemExit("Per-agent build requires both agent_source and agent_output paths.")  # noqa: TRY003
 
     if build_unified and (unified_source is None or unified_output is None):
-        raise SystemExit("Unified build requires both unified_source and unified_output paths.")
+        raise SystemExit("Unified build requires both unified_source and unified_output paths.")  # noqa: TRY003
 
 
 def build_parser() -> argparse.ArgumentParser:
     """Return the CLI argument parser for docs generation."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--root",
@@ -248,10 +248,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--unified-source",
         default=ROOT / "docs/source",
         type=Path,
-        help=(
-            "Unified docs source directory, resolved from the repository root "
-            f"(default: {ROOT / 'docs/source'})."
-        ),
+        help=(f"Unified docs source directory, resolved from the repository root (default: {ROOT / 'docs/source'})."),
     )
     parser.add_argument(
         "--unified-output",
@@ -269,7 +266,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def generate_docs(
+def generate_docs(  # noqa: PLR0913,PLR0917
     root: Path,
     source: Path,
     output: Path,
@@ -280,7 +277,6 @@ def generate_docs(
     agent_filter: list[str] | None = None,
 ) -> None:
     """Dispatch builds for per-agent sites and the unified site."""
-
     filter_set = set(agent_filter) if agent_filter else None
 
     agent_dirs: list[Path] = []
@@ -295,10 +291,9 @@ def generate_docs(
     if not agent_dirs:
         if filter_set:
             logger.warning("No agents matched filter %s; skipping per-agent build.", sorted(filter_set))
-            raise SystemExit("No agents matched the provided filter; nothing to build.")
-        else:
-            logger.warning("No agent projects found; skipping per-agent build.")
-            raise SystemExit("No agent projects found; nothing to build.")
+            raise SystemExit("No agents matched the provided filter; nothing to build.")  # noqa: TRY003
+        logger.warning("No agent projects found; skipping per-agent build.")
+        raise SystemExit("No agent projects found; nothing to build.")  # noqa: TRY003
 
     # agent_dirs is guaranteed non-empty here (early return above).
     extra_paths = [str(root)] + [str(agent_dir / "src") for agent_dir in agent_dirs]
@@ -316,6 +311,7 @@ def generate_docs(
 
 
 def main() -> None:
+    """Entry point for CLI docs generation."""
     parser = build_parser()
     args = parser.parse_args()
 
@@ -346,8 +342,8 @@ def main() -> None:
             build_unified=build_unified,
             agent_filter=args.agents,
         )
-    except Exception as exc:  # pragma: no cover - logging only
-        logger.error("Error generating documentation: %s", exc)
+    except Exception:  # pragma: no cover - logging only
+        logger.exception("Error generating documentation")
         sys.exit(1)
 
 

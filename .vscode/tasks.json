@@ -1,0 +1,152 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Checks",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Full quality gate (fmt, lint, type checks, security, tests, markdown)",
+      "args": ["run", "poe", "check"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Format",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Ruff format across agents, scripts, docs sources",
+      "args": ["run", "poe", "fmt"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Lint",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Ruff check across agents, scripts, docs sources",
+      "args": ["run", "poe", "lint"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Pyright",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Pyright strict type check (agents + scripts + docs)",
+      "args": ["run", "poe", "pyright"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Mypy",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Mypy strict type check (agents + scripts + docs)",
+      "args": ["run", "poe", "mypy"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Pytest across agents",
+      "args": ["run", "poe", "test"],
+      "problemMatcher": {
+        "owner": "python",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "message": 4
+        }
+      },
+      "presentation": {
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "Setup (venv + deps + hooks)",
+      "type": "shell",
+      "command": "uv",
+      "detail": "Creates .venv, installs all extras, runs pre-commit install via poe setup",
+      "args": ["run", "poe", "setup", "--python=${input:py_version}"],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      },
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "type": "pickString",
+      "id": "py_version",
+      "description": "Python version",
+      "options": ["3.10", "3.11", "3.12", "3.13"],
+      "default": "3.13"
+    }
+  ]
+}

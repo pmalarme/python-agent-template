@@ -40,8 +40,9 @@ from pathlib import Path
 
 from poethepoet.app import PoeThePoet
 from rich import print
-
 from utils.task_utils import discover_projects, extract_poe_tasks
+
+MIN_ARGS = 2
 
 
 def main() -> None:
@@ -55,7 +56,7 @@ def main() -> None:
     pyproject_file = Path(__file__).resolve().parent.parent / "pyproject.toml"
     projects = discover_projects(pyproject_file)
 
-    if len(sys.argv) < 2:
+    if len(sys.argv) < MIN_ARGS:
         print("Please provide a task name")
         sys.exit(1)
 
