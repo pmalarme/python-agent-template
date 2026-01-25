@@ -49,7 +49,7 @@ dev = [
     "tomli-w>=1.0.0",
 ]
 docs = [
-    "sphinx>=7.4,<8",
+    "sphinx>=7.4,<9",
     "sphinx-autodoc-typehints>=2.2.1",
     "tomli>=2.0.1",
 ]
