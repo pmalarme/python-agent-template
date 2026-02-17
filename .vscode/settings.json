@@ -6,6 +6,7 @@
       "allowCompoundWords": true
     }
   ],
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv",
   "python.analysis.autoFormatStrings": true,
   "python.analysis.importFormat": "relative",
   "python.analysis.packageIndexDepths": [
