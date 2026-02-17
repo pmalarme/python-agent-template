@@ -212,7 +212,7 @@ Set up pre-commit hooks:
 uv run poe pre-commit-install
 ```
 
-This installs the pre-commit hooks defined in [.pre-commit-config.yaml](../.pre-commit-config.yaml) to run before each commit. If you have some issues with the pre-commit hooks, you can run them in a terminal using the following command:
+This installs the pre-commit hooks defined in [.pre-commit-config.yaml](.pre-commit-config.yaml) to run before each commit. If you have some issues with the pre-commit hooks, you can run them in a terminal using the following command:
 
 ```sh
 uv run pre-commit run --all-files
