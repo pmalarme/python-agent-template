@@ -1,4 +1,4 @@
-"""Check code blocks in Markdown files for syntax errors.
+"""Check code blocks in Markdown files for type checking and linting issues.
 
 What it does:
 - Expands glob patterns (unless --no-glob) to find Markdown files.
