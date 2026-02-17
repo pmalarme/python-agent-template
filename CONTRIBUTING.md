@@ -80,7 +80,7 @@ These are the do and don'ts for contributing code changes:
 - **DON'T** be discouraged if your pull request is not accepted immediately. The maintainers may request changes or provide feedback to help improve your contribution.
 - **DON'T** submit pull requests without an issue. If there is no issue, please create one first to discuss your proposed changes.
 - **DON'T** include proprietary or third-party code in your pull request without proper authorization and without prior discussion with the maintainers.
-- **DON'T** don't push code you didn't write yourself. Always ensure you have the right to submit the code you are contributing.
+- **DON'T** push code you didn't write yourself. Always ensure you have the right to submit the code you are contributing.
 
 ### Proposed Workflow for Contributing Code Changes
 
