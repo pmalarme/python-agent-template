@@ -46,7 +46,7 @@ To accelerate the resolution of bugs, please do not hesitate to include as much 
 
 ## Contributing Code Changes
 
-Code contributions are more than welcome! The maintainers of this project appreciate your efforts to help improve the codebase. They will review your pull requests and provide feedback as needed. If your changes are accepted, they will merged them into the main codebase.
+Code contributions are more than welcome! The maintainers of this project appreciate your efforts to help improve the codebase. They will review your pull requests and provide feedback as needed. If your changes are accepted, they will merge them into the main codebase.
 
 These are the do and don'ts for contributing code changes:
 
