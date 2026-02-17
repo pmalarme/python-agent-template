@@ -9,6 +9,12 @@ format.ref = "fmt"
 lint = "ruff check"
 pyright = "pyright"
 
+# Default tasks for type checking, security scanning, and testing
+# Agents can override these in their pyproject.toml for custom configurations
+mypy = "uv run mypy --config-file pyproject.toml src"
+bandit = "uv run bandit -c pyproject.toml -r src docs/source"
+test = "uv run pytest --cov-report=term-missing:skip-covered"
+
 # publish builds and uploads the package to the configured index (e.g., GitHub Packages)
 publish = "uv publish"
 
