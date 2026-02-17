@@ -1,0 +1,28 @@
+{
+  "cSpell.languageSettings": [
+    {
+      "languageId": "python",
+      "locale": "en-US",
+      "allowCompoundWords": true
+    }
+  ],
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.importFormat": "relative",
+  "python.analysis.packageIndexDepths": [
+    {
+      "name": "python_agent_template",
+      "depth": 4
+    }
+  ],
+  "ruff.configuration": "${workspaceFolder}/pyproject.toml",
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports.ruff": "always",
+      "source.fixAll.ruff": "always"
+    }
+  }
+}

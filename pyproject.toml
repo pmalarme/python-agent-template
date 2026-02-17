@@ -1,6 +1,7 @@
 # Portions derived from Microsoft Agent Framework (MIT license):
 #   https://github.com/microsoft/agent-framework
 #   https://github.com/microsoft/agent-framework/blob/main/LICENSE
+
 [project]
 name = "python-agent-template"
 version = "0.1.0"
@@ -71,7 +72,14 @@ line-length = 120
 target-version = "py310"
 fix = true
 include = ["*.py", "**/pyproject.toml", "*.ipynb"]
-exclude = ["docs/*", "**/.venv/**", "**/.uv/**", "**/.git/**", "**/.cache/**"]
+exclude = [
+    "docs/generated/**",
+    "agents/**/docs/generated/**",
+    "**/.venv/**",
+    "**/.uv/**",
+    "**/.git/**",
+    "**/.cache/**",
+]
 preview = true
 
 [tool.ruff.lint]
@@ -93,7 +101,7 @@ select = [
     "INP",    # implicit namespace package
     "ISC",    # implicit string concat
     "N",      # naming
-    "PGH",    # pydantic guards
+    "PGH",    # pygrep-hooks
     "Q",      # flake8-quotes checks
     "RET",    # flake8-return
     "RSE",    # raise exception parentheses
@@ -104,22 +112,21 @@ select = [
     "RUF",    # ruff-specific rules
     "SIM",    # simplify
     "PT",     # pytest style
-    "T20",    # typing checks
+    "T20",    # Print checks
     "TD",     # todos
     "TRY",    # exception handling patterns
     "UP",     # pyupgrade rules
     "W",      # pycodestyle warnings
-    "T100",   # debugger
+    "T10",    # debugger
     "S",      # Bandit checks
 ]
 ignore = [
-    "D100",  # allow missing docstring in public module
-    "D104",  # allow missing docstring in public package
+    "D100",  # allow missing docstring in public modules
+    "D104",  # allow missing docstring in public packages
     "D418",  # allow overload to have a docstring
     "TD003", # allow missing link to todo issue
     "FIX002",# allow todo
-    "B027",  # allow empty non-abstract method in ABC
-    "RUF067",# allow version detection in __init__.py
+    "B027",  # allow empty non-abstract method in abstract base classes
     "CPY",   # temp: skip copyright check until headers are standardized
 ]
 
@@ -178,23 +185,34 @@ warn_required_dynamic_aliases = true
 warn_untyped_fields = true
 
 [tool.bandit]
-targets = ["agents", "scripts"]
-exclude_dirs = ["**/tests/**", "**/.venv/**", "**/.uv/**"]
+targets = ["agents", "scripts", "docs/source"]
+exclude_dirs = ["**/tests/**", "**/.venv/**", "**/.uv/**", "**/docs/generated/**"]
 
 [tool.poe]
 executor.type = "uv"
 
 [tool.poe.tasks]
-fmt = "python scripts/run_tasks_in_agents_if_exists.py fmt"
+fmt = ["fmt-agents", "fmt-root"]
+fmt-agents = "python scripts/run_tasks_in_agents_if_exists.py fmt"
+fmt-root = "uv run ruff format scripts docs/source agents/*/docs/source"
 format.ref = "fmt"
-lint = "python scripts/run_tasks_in_agents_if_exists.py lint"
-pyright = "python scripts/run_tasks_in_agents_if_exists.py pyright"
-mypy = "python scripts/run_tasks_in_agents_if_exists.py mypy"
-bandit = ["bandit-agents", "bandit-scripts"]
-bandit-agents = "python scripts/run_tasks_in_agents_if_exists.py bandit"
-bandit-scripts = "uv run bandit -c pyproject.toml -r scripts"
+
+lint = ["lint-agents", "lint-root"]
+lint-agents = "python scripts/run_tasks_in_agents_if_exists.py lint"
+lint-root = "uv run ruff check scripts docs/source agents/*/docs/source"
+
+pyright = ["pyright-agents", "pyright-root"]
+pyright-agents = "python scripts/run_tasks_in_agents_if_exists.py pyright"
+pyright-root = "uv run pyright"
+
+mypy = ["mypy-agents", "mypy-root"]
+mypy-agents = "python scripts/run_tasks_in_agents_if_exists.py mypy"
+mypy-root = "uv run mypy --config-file pyproject.toml"
+
+bandit = "uv run bandit -c pyproject.toml -r agents scripts docs/source"
+
 test = "python scripts/run_tasks_in_agents_if_exists.py test"
-markdown-code-lint = "uv run python scripts/check_md_code_blocks.py README.md docs/manual/*.md agents/**/README.md"
+markdown-code-lint = "uv run python scripts/check_md_code_blocks.py README.md docs/manual/*.md agents/**/README.md .github/instructions/*.md"
 pre-commit-install = "uv run pre-commit install --install-hooks --overwrite"
 install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --no-group=docs"
 docs = "uv run python scripts/generate_docs.py"
@@ -245,6 +263,7 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]
 build-backend = "flit_core.buildapi"

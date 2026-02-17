@@ -17,8 +17,8 @@ Example agent built from the python-agent-template. Use this as a starting point
 - Tests: `uv run poe test`
 
 ## Run from repo root (alternative)
-- Run the agent without `cd`: `uv run -C agents/agent1 agent1 Alice --greeting hello`.
-- Agent checks from root: `uv run -C agents/agent1 poe check`.
+- Run the agent without `cd`: `uv run --package agent1 agent1 Alice --greeting hello`.
+- Agent checks from root: `uv run poe -C agents/agent1 check`.
 - Repo-wide checks: `uv run poe check`.
 
 ## Build the image (wheel-based)
@@ -29,7 +29,7 @@ Example agent built from the python-agent-template. Use this as a starting point
 - Configure env vars for publishing:
   - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
   - `export UV_PUBLISH_TOKEN=<ghp_or_fine_grained_token_with_package_write>`
-- Publish from the agent dir (`agents/agent1`): `uv run poe publish` (uploads the built wheel/sdist). From repo root use `uv run -C agents/agent1 poe publish`.
+- Publish from the agent dir (`agents/agent1`): `uv run poe publish` (uploads the built wheel/sdist). From repo root use `uv run poe -C agents/agent1 publish`.
 - Package namespace: `python_agent_template.agents.agent1` uses a namespace root without `__init__.py` so multiple agents can coexist (PyPA guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/).
 
 ## Anatomy

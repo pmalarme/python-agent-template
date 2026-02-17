@@ -24,7 +24,6 @@ logger = logging.getLogger(__name__)
 
 def _get_project_version(default: str = "0.0.0") -> str:
     """Return the project version from pyproject.toml, or a default."""
-
     pyproject_path = PROJECT_ROOT / "pyproject.toml"
     if tomllib is None or not pyproject_path.is_file():
         return default
@@ -39,10 +38,7 @@ def _get_project_version(default: str = "0.0.0") -> str:
         logger.warning("Failed to parse %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
-    version = (
-        data.get("project", {}).get("version")
-        or data.get("tool", {}).get("poetry", {}).get("version")
-    )
+    version = data.get("project", {}).get("version") or data.get("tool", {}).get("poetry", {}).get("version")
     return version or default
 
 
@@ -61,6 +57,7 @@ try:
         # Only enable when the TOML parser (and therefore the extension's deps) is available.
         # Import is intentionally unused; it fails fast if the dependency stack is missing.
         import sphinx_autodoc_typehints  # noqa: F401  # pyright: ignore[reportMissingImports,reportUnusedImport]
+
         extensions.append("sphinx_autodoc_typehints")
 except Exception:
     logger.warning("sphinx_autodoc_typehints not enabled; dependency stack missing.", exc_info=True)

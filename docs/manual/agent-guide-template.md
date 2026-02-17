@@ -38,7 +38,7 @@ agents/<agent>/
 ## Daily workflow
 1) Setup once (root): `uv run poe setup`.
 2) Work inside the agent: `cd agents/<agent>`.
-3) Run the CLI: `uv run <agent> Alice --greeting hello` (or from root with `uv run -C agents/<agent> ...`).
+3) Run the CLI: `uv run <agent> Alice --greeting hello` (or from root with `uv run --package <agent> <agent> ...`).
 4) Run agent checks: `uv run poe check`.
 5) Before publishing or merging, optionally run repo-wide checks from root: `uv run poe check`.
 
@@ -50,11 +50,11 @@ agents/<agent>/
 - `poe bandit` — security scan on agent code
 - `poe test` — pytest with coverage
 - `poe check` — bundle of the above
-Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent> poe <task>` from root.
+Run with `uv run poe <task>` from `agents/<agent>`, or `uv run poe -C agents/<agent> <task>` from root.
 
 ## Running the agent
 - From agent dir: `uv run <agent> Alice --greeting hello`
-- From root: `uv run -C agents/<agent> <agent> Alice --greeting hello`
+- From root: `uv run --package <agent> <agent> Alice --greeting hello`
 
 ## Testing and coverage
 - Unit tests: `uv run poe test`
@@ -74,7 +74,7 @@ Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent>
 - Set:
   - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
   - `export UV_PUBLISH_TOKEN=<token_with_package_write>`
-- From agent dir: `uv run poe publish` (uploads wheel/sdist for this agent), or from root: `uv run -C agents/<agent> poe publish`.
+- From agent dir: `uv run poe publish` (uploads wheel/sdist for this agent), or from root: `uv run poe -C agents/<agent> publish`.
 
 ## What lives where
 - Agent-level (agents/<agent>): code, tests, Dockerfile, agent-specific tasks/config, LICENSE, README, built artifacts.
@@ -88,4 +88,4 @@ Run with `uv run poe <task>` from `agents/<agent>`, or `uv run -C agents/<agent>
 ## Troubleshooting
 - uv missing: install via `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 - Publish auth errors: confirm `UV_PUBLISH_TOKEN` and `UV_PUBLISH_URL` point to your owner.
-- Import errors: use `uv run ...` and correct cwd (`agents/<agent>` or `-C agents/<agent>`).
+- Import errors: use `uv run ...` and correct cwd (`agents/<agent>` or `uv run --package <agent> ...` / `uv run poe -C agents/<agent> ...`).
