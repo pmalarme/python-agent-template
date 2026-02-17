@@ -100,7 +100,7 @@ This will create a virtual environment in `.venv/`, install all dependencies, an
 uv run poe setup --python 3.13
 ```
 
-The default version for the setup Poe task is Python 3.13 and defined in [pyproject.toml](../pyproject.toml) under `[tool.poe.tasks.setup]`.
+The default version for the setup Poe task is Python 3.13 and defined in [pyproject.toml](pyproject.toml) under `[tool.poe.tasks.setup]`.
 
 ### VS Code Setup
 
