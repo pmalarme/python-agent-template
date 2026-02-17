@@ -213,7 +213,7 @@ def check_code_blocks(
             files_with_errors.append(markdown_file_path)
 
     if files_with_errors:
-        raise RuntimeError("Syntax errors found in the following files:\n" + "\n".join(files_with_errors))
+        raise RuntimeError("Type checking or linting issues found in the following files:\n" + "\n".join(files_with_errors))
 
 
 def main() -> None:
