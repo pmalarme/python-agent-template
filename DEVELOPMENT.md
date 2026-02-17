@@ -10,7 +10,7 @@ This is a monorepo hosting multiple Python-based agents. Each agent is an isolat
 
 ## Development Setup
 
-For development, we recommend to use [Python 3.13](https://www.python.org/downloads). A complete definitions of the coding standard and conventions are available in [CODING_STANDARDS.md](CODING_STANDARDS.md).
+For development, we recommend to use [Python 3.13](https://www.python.org/downloads). A complete definition of the coding standards and conventions is available in [CODING_STANDARDS.md](CODING_STANDARDS.md).
 
 Among the agents and for the project root we are using two main tools:
 - [uv](https://github.com/astral-sh/uv) for Python version and virtual environment management, dependency installation, and task running.
