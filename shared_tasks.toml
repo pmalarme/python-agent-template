@@ -10,8 +10,9 @@ lint = "ruff check"
 pyright = "pyright"
 
 # Default tasks for type checking, security scanning, and testing
-# Agents can override these in their pyproject.toml for custom configurations
-mypy = "uv run mypy --config-file pyproject.toml src"
+# Agents typically extend the root $POE_ROOT/pyproject.toml, and may override these
+# tasks in their local pyproject.toml for custom configurations.
+mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
 bandit = "uv run bandit -c pyproject.toml -r src docs/source"
 test = "uv run pytest --cov-report=term-missing:skip-covered"
 
