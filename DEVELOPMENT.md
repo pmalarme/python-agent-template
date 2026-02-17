@@ -353,7 +353,7 @@ uv run poe docs
 
 The setup of the pre-commit hooks is done during the [setup](#setup) or using the [pre-commit-install](#pre-commit-install) Poe task.
 
-The pre-commit hooks are configured in the [.pre-commit-config.yaml](../.pre-commit-config.yaml) file and serve as a first line of defense to catch common issues before code is committed and pushed to the repository.
+The pre-commit hooks are configured in the [.pre-commit-config.yaml](.pre-commit-config.yaml) file and serve as a first line of defense to catch common issues before code is committed and pushed to the repository.
 
 They run the following checks and formatting before each commit:
 - Strips trailing whitespace
