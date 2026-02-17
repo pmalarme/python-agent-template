@@ -110,7 +110,7 @@ Install the following extensions for VS Code:
 - [Ruff extension](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) by Charlie Marsh which integrates the Ruff linter into VS Code.
 - [Code Spell Checker extension](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker) by Street Side Software which helps to catch common spelling errors in code and documentation.
 
-All these extensions are also recommended in the [.vscode/extensions.json](../.vscode/extensions.json) file.
+All these extensions are also recommended in the [.vscode/extensions.json](./.vscode/extensions.json) file.
 
 Open the repo in VS Code, run the command "Python: Select Interpreter," and choose the `.venv` interpreter created by uv. This ensures that linting, type checking, and testing use the same environment as defined for the project.
 
