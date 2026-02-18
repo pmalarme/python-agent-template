@@ -9,7 +9,7 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
+  pull-requests: read
 
 engine:
   id: copilot
@@ -22,9 +22,11 @@ tools:
 safe-outputs:
   create-pull-request-review-comment:
     max: 20
+    footer: "if-body"
   submit-pull-request-review:
     max: 1
-    footer: "if-body"
+    target: "triggering"
+    footer: false
   add-reviewer:
     reviewers: [copilot]
     max: 1
