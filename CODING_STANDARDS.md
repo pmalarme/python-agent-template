@@ -38,6 +38,10 @@ For methods implementing integration with external services, use descriptive pre
 
 Always respect the [KISS principle](https://en.wikipedia.org/wiki/KISS_principle). Write code that is easy to read and understand. Avoid clever tricks or complex constructs that may confuse future maintainers.
 
+**Adopt a secure-by-default approach.**
+
+Treat all external inputs as untrusted. Validate and sanitize at the boundary before use (environment variables, configuration values, etc.). Never hardcode or log secrets, tokens, or credentials in source code; load them from secret stores or environment variables. Prefer the principle of least privilege — request only the permissions, scopes, and access levels that are strictly necessary. See [Security](#security) for detailed practices and tooling.
+
 **Document intent, not mechanics.**
 
 Document non-obvious or surprising behavior with comments and docstrings. Explain the "why" behind decisions, not just the "what". Always update public-facing docs when behavior, configuration, or defaults change.
@@ -48,16 +52,7 @@ When implementing features, consider edge cases and failure modes. Validate inpu
 
 **Treat configuration as a public contract.**
 
-Treat configuration as part of the public contract: validate it, document defaults, and fail fast on invalid values.
-
-**Handle configuration and secrets safely.**
-
-Never hardcode secrets, tokens, credentials, or service endpoints in source code.
-Load them from environment variables, secret stores, or configuration objects instead.
-
-Document all required configuration keys and environment variables in README files or public documentation. Provide defaults only when they are safe and explicitly documented.
-
-When logging, never emit secrets or sensitive data. Mask or strip confidential fields, and avoid logging full request or response payloads if they may contain secrets or personally identifiable information (PII).
+Treat configuration as part of the public contract: validate it, document defaults, and fail fast on invalid values. Document all required configuration keys and environment variables in README files or public documentation. Provide defaults only when they are safe and explicitly documented.
 
 **Follow the Clean Code Essentials.**
 
@@ -88,6 +83,23 @@ def create_user(email: str) -> User:
 ```
 
 over deeply nested `if/else` blocks that obscure the happy path.
+
+For repeated validation concerns on public APIs, a helper or a decorator can keep the happy path pristine while enforcing the same policy:
+
+```python
+@require_non_blank_strings("username", "email")
+def create_user(username: str, email: str) -> User:
+    return User(username=username, email=email)
+```
+
+or
+
+```python
+def create_user(username: str, email: str) -> User:
+    validate_string_is_not_blank(value=username, parameter_name="username")
+    validate_string_is_not_blank(value=email, parameter_name="email")
+    return User(username=username, email=email)
+```
 
 **Avoid boolean mode flags.**
 
@@ -121,6 +133,29 @@ def add_tag(tag: str, tags: list[str] | None = None) -> list[str]:
 Make error messages actionable and safe. Errors should explain what failed, include relevant identifiers, and suggest how to fix the issue. Never include secrets (tokens, passwords, connection strings) in exceptions or logs. Prefer raising precise exception types with clear messages so failures are diagnosable without debugging.
 
 For example, prefer `ValueError("unsupported region 'eu-west-9'; expected one of: ...")` over generic messages like "invalid input".
+
+**Design focused exception classes.**
+
+When built-in exceptions (`ValueError`, `TypeError`, `KeyError`) are not precise enough, create project-specific exceptions that inherit from the closest standard base. Keep exception hierarchies shallow — one level of custom classes inheriting from builtins is usually sufficient.
+
+Each custom exception should:
+- Inherit from the most appropriate built-in (`ValueError`, `TypeError`, etc.).
+- Accept structured context in its constructor and format a clear message in `__init__`.
+- Use `__slots__ = ()` to keep instances lightweight.
+- Live in a dedicated `errors` module within the relevant package, re-exported from `__init__.py`.
+
+```python
+class EmptyStringError(ValueError):
+    """Raised when a string is empty after trimming whitespace."""
+
+    __slots__ = ()
+
+    def __init__(self, parameter: str) -> None:
+        """Initialize the error with parameter context."""
+        super().__init__(f"param '{parameter}' must be non-empty.")
+```
+
+Avoid deep hierarchies or generic "catch-all" base exceptions per agent unless there is a clear need for blanket handling. Callers should be able to catch the specific exception they care about without importing an entire tree.
 
 ## Testing Conventions
 
@@ -180,7 +215,7 @@ We use [Ruff](https://github.com/astral-sh/ruff) for both linting and formatting
 **Rules enforced:**
 
 - See: [pyproject.toml](./pyproject.toml) `[tool.ruff.lint]`
-- [Naming (N)](https://docs.astral.sh/ruff/rules/#pep8-naming-n) — all names follows [PEP8](https://www.python.org/dev/peps/pep-0008/) naming conventions (snake_case functions/vars, CapWords classes, UPPER_SNAKE constants).
+- [Naming (N)](https://docs.astral.sh/ruff/rules/#pep8-naming-n) — all names follow [PEP8](https://www.python.org/dev/peps/pep-0008/) naming conventions (snake_case functions/vars, CapWords classes, UPPER_SNAKE constants).
 - Imports:
     - [I (isort)](https://docs.astral.sh/ruff/rules/#isort-i) — imports are sorted/grouped.
     - [ICN (import conventions)](https://docs.astral.sh/ruff/rules/#flake8-import-conventions-icn) — prefer consistent relative vs absolute imports and avoid pointless aliases.
@@ -199,10 +234,10 @@ We use [Ruff](https://github.com/astral-sh/ruff) for both linting and formatting
 - [Pylint-style (PLC/PLE/PLR/PLW)](https://docs.astral.sh/ruff/rules/#pylint-pl) — [Pylint](https://pylint.pycqa.org/) checks for code smell, complexity, bad builtins, etc.
 - [Bug risks (B)](https://docs.astral.sh/ruff/rules/#flake8-bugbear-b) — checks common bug patterns and potential design issues with bug bear.
 <!-- - [Copyright (CPY)](https://docs.astral.sh/ruff/rules/#flake8-copyright-cpy) — enforces copyright headers. -->
-- [Datetime TZ (DTZ)](https://docs.astral.sh/ruff/rules/#flake8-datetimez-dtz) — datetime should always used with timezone.
-- [Implicit string concat (ISC)](https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc) — checks implicit explicit string concatenation issues.
+- [Datetime TZ (DTZ)](https://docs.astral.sh/ruff/rules/#flake8-datetimez-dtz) — datetime should always be used with timezone.
+- [Implicit string concat (ISC)](https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc) — checks for implicit string concatenation issues.
 - [pygrep-hooks (PGH)](https://docs.astral.sh/ruff/rules/#pygrep-hooks-pgh) — checks `noqa` and `type: ignore` annotations. Checks also invalid mock access.
-- [Pytest style (PT)](https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt) — checks commom issues and inconsistencies in pytest-based tests.
+- [Pytest style (PT)](https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt) — checks common issues and inconsistencies in pytest-based tests.
 - [Security (S)](https://docs.astral.sh/ruff/rules/#flake8-bandit-s) — use [Bandit](https://bandit.readthedocs.io/en/latest/) to find some security issues.
 - [TODO/FIXME hygiene (TD)](https://docs.astral.sh/ruff/rules/#td-flake8-todos) — ensures TODO are properly formatted and linked to an issue.
 - [FIX](https://docs.astral.sh/ruff/rules/#flake8-fixme-fix) — flags FIX/FIXME/XXX/TODO comment patterns.
@@ -289,6 +324,34 @@ Keep imports sorted by Ruff, which groups them as standard library, third-party,
 
 Re-export public symbols in each agent's `__init__.py` to provide a clean public API, and keep internal modules private. Watch out for circular imports; when they occur, move shared types or utilities into dedicated modules to break the cycle.
 
+## Type Annotations
+
+**Always annotate public APIs.**
+
+All public functions, methods, and class attributes must have complete type annotations, including return types. Private helpers should also be annotated when it improves clarity. Both Pyright (strict) and Mypy (strict) run in the quality gate, so all annotations must satisfy both checkers.
+
+**Use `from __future__ import annotations`.**
+
+Include `from __future__ import annotations` at the top of every module. This enables PEP 604 union syntax (`X | Y`) on Python 3.10+ and defers annotation evaluation, avoiding forward-reference issues.
+
+**Prefer modern union syntax.**
+
+Use `X | Y` instead of `Union[X, Y]`, and `X | None` instead of `Optional[X]`. The modern syntax is more readable and consistent with how Python is evolving.
+
+```python
+# ✅ Preferred
+def find_user(user_id: str) -> User | None:
+    ...
+
+# ❌ Avoid
+def find_user(user_id: str) -> Optional[User]:
+    ...
+```
+
+**Type narrowing and casts.**
+
+Prefer `isinstance()` checks or sentinel patterns for type narrowing over `typing.cast()`. Use `cast()` only when the type checker cannot infer the correct type and you are certain of the runtime type.
+
 ## Package Structure and Public API
 
 See [DEVELOPMENT.md](DEVELOPMENT.md) for the full monorepo layout and development guide.
@@ -333,9 +396,35 @@ Never block the event loop with CPU-bound work or blocking I/O. Offload such wor
 
 Prefer `asyncio.TaskGroup` or `gather` with `return_exceptions=False` unless you have a clear strategy for error aggregation.
 
-## Subprocesses and External Calls
+## Security
 
-When calling subprocesses, avoid `shell=True` to prevent shell injection vulnerabilities. Instead, pass argument lists directly to `subprocess` functions:
+This section details the practices that support the [secure-by-default approach](#general-coding-conventions) established in the general conventions.
+
+### Input Validation and Sanitization
+
+Validate all external inputs at the boundary — user data, configuration values, environment variables, webhook payloads, queue messages, and model/tool outputs. Use guard clauses to reject invalid or unexpected values early with clear error messages. Never pass unsanitized inputs to subprocesses, shell commands, SQL queries, or external API calls.
+
+```python
+# ✅ Validate external input at the boundary
+if event_type not in ALLOWED_EVENTS:
+    raise UnsupportedEventError(event_type, expected=ALLOWED_EVENTS)
+```
+
+### Secrets and Credentials
+
+Never hardcode secrets, tokens, API keys, or credentials in source code, tests, or configuration files. Load them from secret stores or environment variables. Never include secrets in logs, exception messages, or error output.
+
+```python
+# ✅ Load secrets from environment or secret stores
+api_key = os.environ["API_KEY"]
+
+# ❌ Never hardcode secrets
+API_KEY = "sk-abc123..."  # exposed in source control
+```
+
+### Subprocess Safety
+
+When calling subprocesses, avoid `shell=True` to prevent shell injection. Pass argument lists directly:
 
 ```python
 # ✅ Preferred
@@ -345,7 +434,65 @@ subprocess.run(["git", "status"], check=True)
 subprocess.run("git status", shell=True)
 ```
 
-Validate any untrusted inputs (user-provided data, config/env values, webhooks, queue messages, tool or model outputs) that influence subprocess arguments or external API requests. Set timeouts on network and subprocess calls where feasible to avoid unbounded waits that can hang your application.
+Validate any inputs that influence subprocess arguments. Set timeouts on subprocess calls to avoid unbounded waits.
+
+### Network and HTTP
+
+Prefer HTTPS for all network communication. Set timeouts and configure retries on HTTP clients. Avoid transmitting sensitive data over plain HTTP.
+
+### Logging Hygiene
+
+Never log secrets, tokens, credentials, or PII. Redact sensitive fields before logging. See the [Logging](#logging) section for formatting and level conventions.
+
+### Dependency Management
+
+Keep `uv.lock` in sync with `pyproject.toml`; fail builds on drift. Review dependency updates for security implications before merging.
+
+### Automated Security Tooling
+
+The project uses multiple layers of automated security scanning:
+
+- **[Bandit](https://bandit.readthedocs.io/)** runs as part of the quality gate (`uv run poe check`) and via Ruff rule [S](https://docs.astral.sh/ruff/rules/#flake8-bandit-s), performing static analysis to find common security issues in Python code (hardcoded passwords, use of `exec`, insecure hash functions, etc.).
+- **[CodeQL](https://codeql.github.com/)** runs on every push and pull request via GitHub Actions ([`.github/workflows/codeql-analysis.yml`](.github/workflows/codeql-analysis.yml)), performing deep semantic analysis to detect vulnerabilities such as injection flaws, path traversals, and insecure data flows. A weekly scheduled scan also runs against the default branch.
+- **[Dependabot](https://docs.github.com/en/code-security/dependabot)** monitors Python (pip/uv) and GitHub Actions dependencies weekly, automatically opening pull requests when security updates or new versions are available. Configuration is in [`.github/dependabot.yml`](.github/dependabot.yml).
+
+### Security Review
+
+An automated [security review agentic workflow](.github/workflows/security-review.md) runs on every pull request, analyzing changed files against 15 security posture categories and posting inline review comments for any findings. After the security review completes, it automatically requests a Copilot code review for additional coverage. The full security checklist is defined in [`.github/agents/security-reviewer.agent.md`](.github/agents/security-reviewer.agent.md).
+
+## Logging
+
+Use the standard `logging` module instead of `print` (enforced by Ruff rule T20). Create one logger per module at module level:
+
+```python
+import logging
+
+logger = logging.getLogger(__name__)
+```
+
+Use lazy formatting with `%`-style placeholders so arguments are only interpolated when the log level is enabled:
+
+```python
+# ✅ Preferred — lazy interpolation
+logger.info("Processing user %s", user_id)
+
+# ❌ Avoid — eager f-string evaluation
+logger.info(f"Processing user {user_id}")
+```
+
+Choose log levels intentionally:
+- `DEBUG` — detailed diagnostic information useful during development.
+- `INFO` — confirmation that things are working as expected.
+- `WARNING` — something unexpected happened but the application continues.
+- `ERROR` — a failure that prevents a specific operation from completing.
+- `CRITICAL` — a failure that may prevent the application from continuing.
+
+Guard expensive log construction behind a level check when the arguments themselves are costly to compute:
+
+```python
+if logger.isEnabledFor(logging.DEBUG):
+    logger.debug("Payload details: %s", expensive_serialize(payload))
+```
 
 ## Performance Considerations
 
@@ -371,20 +518,6 @@ class AIFunction:
 # ❌ Avoid - recalculating every time
 def parameters(self) -> dict[str, Any]:
     return self.input_model.model_json_schema()
-```
-
-### Prefer Attribute Access Over isinstance()
-
-When checking types in hot paths, prefer checking a `type` attribute (fast string comparison) over `isinstance()` (slower due to method resolution order traversal):
-
-```python
-# ✅ Preferred - type attribute comparison
-if content.type == "function_call":
-    # handle function call
-
-# ❌ Avoid in hot paths - isinstance() is slower
-if isinstance(content, FunctionCallContent):
-    # handle function call
 ```
 
 ### Avoid Redundant Serialization

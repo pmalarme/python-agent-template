@@ -1,0 +1,41 @@
+name: release
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: build and publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Build changed agent packages
+        run: uv run poe build-changed
+
+      - name: Publish to GitHub Packages
+        env:
+          UV_PUBLISH_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/upload
+          UV_PUBLISH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: uv run poe publish
+        # Each agent has its own version; the registry rejects duplicate
+        # versions, so only agents with bumped versions are actually uploaded.

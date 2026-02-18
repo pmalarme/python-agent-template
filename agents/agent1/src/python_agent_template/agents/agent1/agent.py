@@ -4,20 +4,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from .validators.blank_string_validator import require_non_blank_strings
+
 
 @dataclass
 class AgentConfig:
     """Configuration for the example agent."""
 
     greeting: str = "hello"
-
-
-class MissingNameError(ValueError):
-    """Raised when a name argument is missing."""
-
-    def __init__(self) -> None:
-        """Initialize the missing-name error with a default message."""
-        super().__init__("name required")
 
 
 class ExampleAgent:
@@ -27,8 +21,7 @@ class ExampleAgent:
         """Initialize the agent with optional config."""
         self.config = config or AgentConfig()
 
+    @require_non_blank_strings("name")
     def run(self, name: str) -> str:
         """Return a greeting for the provided name."""
-        if not name:
-            raise MissingNameError
         return f"{self.config.greeting}, {name}!"

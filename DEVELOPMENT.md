@@ -124,7 +124,28 @@ This solution is a monorepo hosting multiple Python-based agents. Each agent is 
 
 ```
 Repo root
-├─ .github/                                    # workflows, instructions, templates
+├─ .github/                                    # GitHub configuration and automation
+│  ├─ workflows/                               # GitHub Actions workflows
+│  │  ├─ checks.yml                            # lint, type-check, test on PRs and pushes
+│  │  ├─ docs.yml                              # build Sphinx docs, deploy to GitHub Pages
+│  │  ├─ release.yml                           # build and publish packages
+│  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
+│  │  ├─ security-review.md                    # agentic workflow (security review)
+│  │  └─ security-review.lock.yml              # compiled agentic workflow (generated)
+│  ├─ agents/                                  # Copilot custom agents (*.agent.md)
+│  │  ├─ security-reviewer.agent.md            # security review prompt
+│  │  └─ agentic-workflows.agent.md            # dispatcher agent (gh aw init)
+│  ├─ instructions/                            # Copilot custom instructions
+│  │  ├─ python.instructions.md                # Python coding conventions
+│  │  ├─ agents.instructions.md                # agent development guidelines
+│  │  ├─ docs.instructions.md                  # documentation conventions
+│  │  ├─ agentic-workflows.instructions.md     # agentic workflow authoring
+│  │  └─ copilot-agents.instructions.md        # Copilot agent file format
+│  ├─ ISSUE_TEMPLATE/                          # issue templates (bug, feature)
+│  ├─ pull_request_template.md                 # PR template
+│  ├─ dependabot.yml                           # Dependabot config
+│  ├─ copilot-instructions.md                  # global Copilot instructions
+│  └─ aw/                                      # agentic workflow lock data (generated)
 ├─ agents/
 │  └─ <agent>/
 │     ├─ src/<project-name>/agents/<agent>/    # agent code (entrypoint, core logic)
@@ -153,7 +174,8 @@ Repo root
 ├─ LICENSE                                     # root license
 ├─ pyproject.toml                              # root config, deps, tasks
 ├─ README.md                                   # project overview
-└─ shared_tasks.toml                           # shared Poe tasks
+├─ shared_tasks.toml                           # shared Poe tasks (included by agents)
+└─ dist/                                       # build output (all agents, gitignored)
 ```
 
 ### Poe Tasks
@@ -300,6 +322,60 @@ Run tests sequentially for each agent using the `test` task of the agent.
 uv run poe test
 ```
 
+#### Build and Publish
+
+This group of Poe tasks handles building and publishing agent packages. Each agent has its own version in its `pyproject.toml`, enabling independent release lifecycles.
+
+##### clean-dist
+
+Remove the `dist/` directory at the workspace root:
+
+```sh
+uv run poe clean-dist
+```
+
+All agents' build artifacts land in the workspace root `dist/` directory, so a single clean removes everything.
+
+##### build
+
+Build all agent packages (cleans `dist/` first):
+
+```sh
+uv run poe build
+```
+
+This is a sequence of:
+
+- [clean-dist](#clean-dist)
+- `build-all-agents` (fans out `uv build` to every agent via `run_tasks_in_agents_if_exists.py`)
+
+##### build-changed
+
+Build only agents with changed files (cleans `dist/` first):
+
+```sh
+uv run poe build-changed
+```
+
+This is a sequence of:
+
+- [clean-dist](#clean-dist)
+- `build-changed-agents` (fans out `uv build` only to agents whose files changed, detected via `run_tasks_in_changed_agents.py`)
+
+This is used by the release workflow so that only agent(s) with bumped versions get built and published.
+
+##### publish
+
+Publish all packages in `dist/` to the configured package index:
+
+```sh
+uv run poe publish
+```
+
+This runs a single `uv publish` from the workspace root, uploading everything in `dist/`. The target index is configured in `pyproject.toml` under `[tool.uv.index]` (defaults to GitHub Packages).
+
+Each agent has its own version; the registry rejects duplicate versions, so only agents whose version was bumped actually get uploaded.
+
 ##### pre-commit-check
 
 Run partial checks for pre-commit:
@@ -435,3 +511,53 @@ When working on an agent, follow these steps:
 - Run the agent using: `uv run <agent> [args]` from the agent directory or `uv run --package <agent> <agent> [args]` from the root.
 - Check that the agent is running properly and that the changes are working as expected.
 - Commit and push your changes in a feature branch and open a pull request for review.
+
+### Build, Publish, and Release
+
+Each agent is an independent package with its own version in its `pyproject.toml`, enabling independent SDLC lifecycles. See the [Build and Publish](#build-and-publish) Poe tasks section for detailed task descriptions.
+
+#### Release workflow
+
+The [release workflow](.github/workflows/release.yml) runs on GitHub release events and `workflow_dispatch`. It:
+
+1. Checks out the code and installs dependencies.
+2. Runs `poe build-changed` to build only agents with changes.
+3. Runs `poe publish` to upload the built packages to the configured registry.
+
+To release an agent: bump its version in `agents/<agent>/pyproject.toml`, merge to main, and create a GitHub release.
+
+#### Changing the publish target
+
+By default, packages are published to GitHub Packages. To publish to a different registry (e.g., PyPI, a private Artifactory, or Azure Artifacts), update two places:
+
+1. **`pyproject.toml`** — update the `[[tool.uv.index]]` section at the bottom of the file:
+
+   ```toml
+   [[tool.uv.index]]
+   name = "pypi"               # or your registry name
+   url = "https://pypi.org/simple/"
+   publish-url = "https://upload.pypi.org/legacy/"
+   explicit = true
+   ```
+
+2. **`.github/workflows/release.yml`** — update the environment variables in the publish step:
+
+   ```yaml
+   - name: Publish to PyPI
+     env:
+       UV_PUBLISH_URL: https://upload.pypi.org/legacy/
+       UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+     run: uv run poe publish
+   ```
+
+   For PyPI, create an API token and store it as a repository secret (`PYPI_TOKEN`). For GitHub Packages, the built-in `GITHUB_TOKEN` is used automatically.
+
+### Documentation
+
+Documentation is built using Sphinx and published to GitHub Pages via the [docs workflow](.github/workflows/docs.yml).
+
+- Install docs deps: `uv run poe docs-install`
+- Build locally: `uv run poe docs`
+- The docs workflow triggers on pushes to `main` when documentation sources, agent source code, or the docs generation script change.
+
+> **Note:** `docs/generated/` and `agents/*/docs/generated/` are produced by CI; do not edit or commit them.
