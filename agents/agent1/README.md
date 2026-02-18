@@ -25,10 +25,32 @@ Example agent built from the python-agent-template. Use this as a starting point
 - Build the container (from `agents/agent1`): `docker build -t agent1:latest .`.
 - Run the container: `docker run --rm agent1:latest agent1 Bob` (override args as needed).
 
-## Publish the package to GitHub Packages
+### Push to Azure Container Registry
+
+```sh
+# Log in to ACR
+az acr login --name <your-registry>
+
+# Tag and push
+docker tag agent1:latest <your-registry>.azurecr.io/agent1:<version>
+docker push <your-registry>.azurecr.io/agent1:<version>
+```
+
+## Publish the package
 - Configure env vars for publishing:
-  - `export UV_PUBLISH_URL=https://pypi.pkg.github.com/<owner>`
-  - `export UV_PUBLISH_TOKEN=<ghp_or_fine_grained_token_with_package_write>`
+
+  **Azure Artifacts** (recommended for private packages):
+  ```sh
+  export UV_PUBLISH_URL=https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/
+  export UV_PUBLISH_TOKEN=<your-azure-artifacts-token>
+  ```
+
+  **PyPI** (public packages):
+  ```sh
+  export UV_PUBLISH_URL=https://upload.pypi.org/legacy/
+  export UV_PUBLISH_TOKEN=<your-pypi-token>
+  ```
+
 - Publish from the agent dir (`agents/agent1`): `uv run poe publish` (uploads the built wheel/sdist). From repo root use `uv run poe -C agents/agent1 publish`.
 - Package namespace: `python_agent_template.agents.agent1` uses a namespace root without `__init__.py` so multiple agents can coexist (PyPA guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/).
 

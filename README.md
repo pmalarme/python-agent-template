@@ -56,8 +56,10 @@ flowchart TB
 
     subgraph L6["6. Release"]
         direction LR
-        R1[Build changed agents only]
-        R2[Publish to GitHub Packages]
+        R1[Build changed agents]
+        R2[Tag + GitHub Release]
+        R3[Publish to registry]
+        R4[Monorepo tag + release]
     end
 
     L1 --> L2
@@ -76,7 +78,7 @@ Each layer catches different classes of issues:
 | **CI quality gate** | On PR / push | Full repo-wide type safety, test regressions, code quality |
 | **CI security** | On PR / push / schedule | Dataflow vulnerabilities, outdated dependencies, security posture gaps |
 | **Copilot Review** | On PR (after security scan) | AI-powered code review with suggestions and inline comments |
-| **Release** | On GitHub release | Builds and publishes only changed agents to the package registry |
+| **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
 ---
 
@@ -114,7 +116,8 @@ Repo root
 │  ├─ workflows/                               # GitHub Actions workflows
 │  │  ├─ checks.yml                            # lint, type-check, test on PRs and pushes
 │  │  ├─ docs.yml                              # build Sphinx docs, deploy to GitHub Pages
-│  │  ├─ release.yml                           # build and publish packages
+│  │  ├─ release.yml                           # build and publish agent packages
+│  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
 │  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
 │  │  ├─ security-review.md                    # agentic workflow (security review)
 │  │  └─ security-review.lock.yml              # compiled agentic workflow (generated)
@@ -216,13 +219,10 @@ flowchart TD
     S1 --> S2["Config validation<br/>YAML · TOML · JSON"]
     S2 --> S3["AST check<br/>(syntax errors)"]
     S3 --> S4["pyupgrade<br/>(modern Python 3.10+)"]
-    S4 --> S5["Ruff format + lint"]
-    S5 --> S6["MyPy<br/>(scoped to staged)"]
-    S6 --> S7["Bandit<br/>(security scan)"]
-    S7 --> S8["Markdown fence<br/>code check"]
-    S8 --> S9["nbQA<br/>(notebook parse)"]
-    S9 --> S10["uv-lock sync<br/>(if manifests changed)"]
-    S10 --> S11["poe pre-commit-check<br/>(Pyright staged)"]
+    S4 --> S5["poe pre-commit-check<br/>Ruff fmt + lint, Pyright,<br/>Markdown lint (staged)"]
+    S5 --> S6["Bandit<br/>(security scan)"]
+    S6 --> S7["nbQA<br/>(notebook parse)"]
+    S7 --> S8["uv-lock sync<br/>(if manifests changed)"]
 ```
 
 ### CI workflows — on every PR and push
@@ -253,15 +253,16 @@ flowchart TD
     SR4 --> SR5["Assign Copilot<br/>as PR reviewer"]
 ```
 
-### Release workflow — on GitHub release
+### Release workflow — on push to main or manual dispatch
 
 ```mermaid
 flowchart LR
-    R0["GitHub release<br/>(published)"] --> R1["Checkout +<br/>uv setup"]
-    R1 --> R2["uv sync<br/>--all-extras --dev"]
-    R2 --> R3["poe build-changed<br/>(changed agents only)"]
-    R3 --> R4["poe publish<br/>(uv publish → dist/)"]
-    R4 --> R5["GitHub Packages<br/>(or configured registry)"]
+    R0["Push to main<br/>(agent changes)"] --> R1["poe build-changed"]
+    R1 --> R2["Iterate wheels<br/>in dist/"]
+    R2 --> R3["Skip if tag<br/>already exists"]
+    R3 --> R4["Create tag<br/>agent1-v1.2.0"]
+    R4 --> R5["GitHub release<br/>PR changelog +<br/>.whl + .tar.gz"]
+    R5 --> R6["Publish to<br/>registry"]
 ```
 
 ### Docs workflow — on push to main
@@ -374,7 +375,10 @@ uv run --package <your-agent> <your-agent> [args]
 
 1. Bump the version in `agents/<your-agent>/pyproject.toml`.
 2. Merge to main.
-3. Create a GitHub release — the release workflow builds and publishes automatically.
+
+The release workflow automatically builds changed agents, creates a `<agent>-v<version>` tag and GitHub release with the wheel attached, and generates release notes from merged PRs.
+
+For shared infrastructure changes (scripts, workflows, Copilot instructions, docs), bump the `version` in the root `pyproject.toml` — the [monorepo release workflow](.github/workflows/monorepo-release.yml) handles tagging and releasing.
 
 ---
 
@@ -384,35 +388,67 @@ Each agent is an independent package with its own version, enabling independent 
 
 - `poe build` — cleans `dist/` and builds **all** agent packages.
 - `poe build-changed` — cleans `dist/` and builds only agents with **changed files**.
-- `poe publish` — uploads everything in `dist/`. The registry rejects duplicate versions, so only agents with bumped versions actually get uploaded.
+- `poe publish` — uploads everything in `dist/` to the configured registry.
 
-The [release workflow](.github/workflows/release.yml) runs on GitHub release events and `workflow_dispatch`. It uses `build-changed` → `publish` so only modified agents are built and published.
+### Versioning convention
 
-### Changing the publish target
+The repository uses **two versioning tracks**:
 
-By default, packages are published to **GitHub Packages**. To publish to a different registry (PyPI, Artifactory, Azure Artifacts, etc.), update two places:
+| Track | Version source | Tag format | Example |
+| --- | --- | --- | --- |
+| **Monorepo** | root `pyproject.toml` | `v<version>` | `v0.2.0` |
+| **Agent** | `agents/<agent>/pyproject.toml` | `<agent>-v<version>` | `agent1-v1.0.0` |
 
-1. **`pyproject.toml`** — update the `[[tool.uv.index]]` section:
+Both use semantic versioning. Tags are created automatically by their respective release workflows when the version is bumped and merged to `main`.
 
-   ```toml
-   [[tool.uv.index]]
-   name = "pypi"               # or your registry name
-   url = "https://pypi.org/simple/"
-   publish-url = "https://upload.pypi.org/legacy/"
-   explicit = true
-   ```
+```
+v0.1.0               # monorepo release (shared infra)
+v0.2.0               # monorepo release
+agent1-v1.0.0        # agent release
+agent1-v1.1.0-rc.1   # agent pre-release
+agent2-v0.3.0        # different agent, independent version
+```
 
-2. **`.github/workflows/release.yml`** — update the publish step environment variables:
+### Agent release workflow
 
-   ```yaml
-   - name: Publish to PyPI
-     env:
-       UV_PUBLISH_URL: https://upload.pypi.org/legacy/
-       UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-     run: uv run poe publish
-   ```
+The [agent release workflow](.github/workflows/release.yml) triggers on pushes to `main` that change agent sources or pyproject files, and on `workflow_dispatch`. It:
 
-   For PyPI, create an API token and store it as a repository secret (`PYPI_TOKEN`). For GitHub Packages, the built-in `GITHUB_TOKEN` is used automatically.
+1. Runs `poe build-changed` to build only agents with modified files.
+2. Iterates over the wheels in `dist/`, extracting agent name and version from each filename.
+3. Skips any agent whose `<agent>-v<version>` tag already exists.
+4. Creates an annotated tag and pushes it.
+5. Creates a GitHub release with the `.whl` and `.tar.gz` attached, and release notes generated from merged PRs (not individual commits) that touched `agents/<agent>/`.
+6. Publishes the built packages to the configured registry (see below).
+
+### Monorepo release workflow
+
+The [monorepo release workflow](.github/workflows/monorepo-release.yml) triggers on pushes to `main` that change shared infrastructure — root `pyproject.toml`, `shared_tasks.toml`, scripts, workflows, Copilot instructions, docs config, or project documentation — and on `workflow_dispatch`. It:
+
+1. Reads the version from the root `pyproject.toml`.
+2. Skips if a `v<version>` tag already exists.
+3. Creates an annotated tag and pushes it.
+4. Creates a GitHub release with release notes generated from merged PRs.
+
+### Setting up publishing
+
+Publishing is **commented out** by default — the workflow only creates tags and GitHub releases. To enable it:
+
+#### Azure Artifacts (recommended for private packages)
+
+1. [Create a feed](https://learn.microsoft.com/azure/devops/artifacts/quickstarts/python-packages) in your Azure DevOps organization.
+2. Generate a Personal Access Token (PAT) with **Packaging > Read & Write** scope.
+3. Add the PAT as a repository secret named `AZURE_ARTIFACTS_TOKEN` (Settings → Secrets and variables → Actions).
+4. Uncomment the "Publish to Azure Artifacts" block in `.github/workflows/release.yml`.
+5. Uncomment the Azure `[[tool.uv.index]]` block in `pyproject.toml` and fill in your org/project/feed.
+
+#### PyPI (public packages)
+
+1. [Create an API token](https://pypi.org/manage/account/token/) on PyPI.
+2. Add it as a repository secret named `PYPI_TOKEN`.
+3. Uncomment the "Publish to PyPI" block in `.github/workflows/release.yml`.
+4. Uncomment the PyPI `[[tool.uv.index]]` block in `pyproject.toml`.
+
+> **Note:** GitHub Packages does **not** support a Python/pip registry.
 
 ---
 

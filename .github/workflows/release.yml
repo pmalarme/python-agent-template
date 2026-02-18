@@ -2,23 +2,27 @@ name: release
 
 on:
   workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    branches: ["main"]
+    paths:
+      - "agents/*/pyproject.toml"
+      - "agents/*/src/**"
 
 permissions:
-  contents: read
+  contents: write          # create tags, releases, and upload assets
   packages: write
 
 jobs:
-  publish:
-    name: build and publish
+  release:
+    name: build and release
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          persist-credentials: false
+          fetch-depth: 0
+          persist-credentials: true
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v5
@@ -32,10 +36,100 @@ jobs:
       - name: Build changed agent packages
         run: uv run poe build-changed
 
-      - name: Publish to GitHub Packages
+      - name: Tag and release built wheels
         env:
-          UV_PUBLISH_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/upload
-          UV_PUBLISH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: uv run poe publish
-        # Each agent has its own version; the registry rejects duplicate
-        # versions, so only agents with bumped versions are actually uploaded.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          shopt -s nullglob
+          WHEELS=(dist/*.whl)
+
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+            echo "::notice::No wheels in dist/ — nothing to release."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          for WHL in "${WHEELS[@]}"; do
+            # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
+            BASENAME=$(basename "$WHL")
+            NAME=$(echo "$BASENAME" | cut -d- -f1)
+            VERSION=$(echo "$BASENAME" | cut -d- -f2)
+            TAG="${NAME}-v${VERSION}"
+
+            # Skip if tag already exists
+            if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "::notice::Tag ${TAG} already exists — skipping."
+              continue
+            fi
+
+            echo "::group::Releasing ${TAG}"
+
+            # Create annotated tag
+            git tag -a "$TAG" -m "Release ${NAME} v${VERSION}"
+            git push origin "$TAG"
+
+            # Generate changelog from merged PRs since previous tag for this agent
+            PREV_TAG=$(git tag --list "${NAME}-v*" --sort=-v:refname \
+              | grep -v "^${TAG}$" | head -1 || true)
+
+            NOTES=""
+            if [ -n "$PREV_TAG" ]; then
+              # Extract PR numbers from commit messages (covers squash and merge commits)
+              PR_NUMS=$(git log "${PREV_TAG}..${TAG}" --oneline -- "agents/${NAME}/" \
+                | grep -oP '#\K\d+' | sort -un || true)
+
+              for NUM in $PR_NUMS; do
+                TITLE=$(gh pr view "$NUM" --json title --jq '.title' 2>/dev/null || true)
+                if [ -n "$TITLE" ]; then
+                  NOTES="${NOTES}- ${TITLE} (#${NUM})"$'\n'
+                fi
+              done
+            fi
+
+            # Fallback if no PRs found
+            if [ -z "$NOTES" ]; then
+              NOTES="- Initial release of ${NAME} ${VERSION}"
+            fi
+
+            # Create GitHub release with wheel + sdist attached
+            ASSETS=("$WHL")
+            SDIST="dist/${NAME}-${VERSION}.tar.gz"
+            [ -f "$SDIST" ] && ASSETS+=("$SDIST")
+
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --title "${NAME} v${VERSION}" \
+              --notes "## ${NAME} v${VERSION}"$'\n\n'"### Changes"$'\n\n'"${NOTES}"
+
+            echo "::endgroup::"
+          done
+
+      # ── Publish to package registry ─────────────────────────────────
+      # Uncomment ONE of the blocks below and configure the matching
+      # secret in your repository settings.
+      # Also uncomment the corresponding [[tool.uv.index]] block in
+      # pyproject.toml so that `uv publish` knows the target URL.
+      #
+      # Azure Artifacts (recommended for private packages):
+      #   1. Create a feed: https://learn.microsoft.com/azure/devops/artifacts/quickstarts/python-packages
+      #   2. Generate a PAT with Packaging > Read & Write scope.
+      #   3. Add the PAT as a repository secret named AZURE_ARTIFACTS_TOKEN.
+      #   4. Uncomment the block below and the [[tool.uv.index]] in pyproject.toml.
+      #
+      # - name: Publish to Azure Artifacts
+      #   env:
+      #     UV_PUBLISH_URL: https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/
+      #     UV_PUBLISH_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
+      #   run: uv publish
+      #
+      # PyPI (public packages):
+      #   1. Create an API token: https://pypi.org/manage/account/token/
+      #   2. Add it as a repository secret named PYPI_TOKEN.
+      #   3. Uncomment the block below and the [[tool.uv.index]] in pyproject.toml.
+      #
+      # - name: Publish to PyPI
+      #   env:
+      #     UV_PUBLISH_URL: https://upload.pypi.org/legacy/
+      #     UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      #   run: uv publish

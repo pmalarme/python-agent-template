@@ -1,0 +1,14 @@
+# CODEOWNERS — uncomment and customize after creating a repo from this template.
+# See: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Default owners for everything in the repo
+# * @your-org/your-team
+#
+# Agent-specific ownership
+# agents/agent1/ @your-org/agent1-team
+#
+# CI / workflow changes require admin review
+# .github/ @your-org/platform-team
+#
+# Documentation
+# docs/ @your-org/docs-team

@@ -35,7 +35,3 @@ jobs:
 
       - name: Run checks
         run: uv run poe check
-
-      - name: Run changed-agents lint (fast path)
-        if: ${{ github.event_name == 'pull_request' }}
-        run: uv run python scripts/run_tasks_in_changed_agents.py lint

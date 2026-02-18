@@ -147,7 +147,7 @@ convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = 'agents/**/tests'
-addopts = "-ra -q -r fEX"
+addopts = "-ra -q -r fEX --cov-fail-under=80"
 filterwarnings = []
 timeout = 120
 asyncio_mode = "auto"
@@ -257,11 +257,24 @@ sequence = [
 ]
 args = [{ name = "files", default = ".", positional = true, multiple = true }]
 
-[[tool.uv.index]]
-name = "github"
-url = "https://nuget.pkg.github.com/pmalarme/index.json"
-publish-url = "https://nuget.pkg.github.com/pmalarme/upload"
-explicit = true
+# ── Package registry ──────────────────────────────────────────────────────────
+# GitHub Packages does NOT support a Python/pip registry.
+# Uncomment ONE of the blocks below and configure the matching
+# UV_PUBLISH_URL / UV_PUBLISH_TOKEN in .github/workflows/release.yml.
+#
+# Azure Artifacts (recommended for private packages):
+# [[tool.uv.index]]
+# name = "azure"
+# url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/simple/"
+# publish-url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/"
+# explicit = true
+#
+# PyPI (public packages):
+# [[tool.uv.index]]
+# name = "pypi"
+# url = "https://pypi.org/simple/"
+# publish-url = "https://upload.pypi.org/legacy/"
+# explicit = true
 
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]

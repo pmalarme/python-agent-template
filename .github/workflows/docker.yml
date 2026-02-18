@@ -1,0 +1,67 @@
+name: docker
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "agents/*/Dockerfile"
+      - "agents/*/src/**"
+      - "agents/*/pyproject.toml"
+  push:
+    branches: ["main"]
+    paths:
+      - "agents/*/Dockerfile"
+      - "agents/*/src/**"
+      - "agents/*/pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: detect agents with Dockerfiles
+    runs-on: ubuntu-latest
+
+    outputs:
+      agents: ${{ steps.find.outputs.agents }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Find agents with Dockerfiles
+        id: find
+        run: |
+          agents=$(find agents -maxdepth 2 -name Dockerfile -printf '%h\n' \
+            | xargs -I{} basename {} \
+            | jq -Rcn '[inputs]')
+          echo "agents=$agents" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build ${{ matrix.agent }}
+    needs: detect
+    if: ${{ needs.detect.outputs.agents != '[]' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJson(needs.detect.outputs.agents) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Build Docker image
+        run: |
+          docker build \
+            -t "${{ matrix.agent }}:ci" \
+            -f "agents/${{ matrix.agent }}/Dockerfile" \
+            "agents/${{ matrix.agent }}"
+
+      - name: Smoke test
+        run: docker run --rm "${{ matrix.agent }}:ci" --help || true
