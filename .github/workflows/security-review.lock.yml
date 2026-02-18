@@ -23,7 +23,7 @@
 #
 # Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings, then requests Copilot code review.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"eff26dc915998b86cd77dc770d1402df3042c48c2e0635c97982a4d86618e5ad"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3082f8a5932786883854d0039f5bfb05484915fd6f9b1fdd0d273218d043cb5b"}
 
 name: "Security Review"
 "on":
@@ -372,7 +372,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_reviewer":{"max":1,"reviewers":["copilot"]},"create_pull_request_review_comment":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
+          {"add_reviewer":{"max":3,"reviewers":["copilot"]},"create_pull_request_review_comment":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -445,7 +445,7 @@ jobs:
               "name": "submit_pull_request_review"
             },
             {
-              "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. CONSTRAINTS: Maximum 1 reviewer(s) can be added.",
+              "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. CONSTRAINTS: Maximum 3 reviewer(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {

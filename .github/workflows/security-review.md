@@ -28,8 +28,8 @@ safe-outputs:
     footer: false
   add-reviewer:
     reviewers: [copilot]
-    max: 1
-    target: "triggering"
+    max: 3
+    target: "*"
 ---
 
 # Security Review
