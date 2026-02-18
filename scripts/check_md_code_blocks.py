@@ -1,4 +1,4 @@
-"""Check code blocks in Markdown files for syntax errors.
+"""Check code blocks in Markdown files for type checking and linting issues.
 
 What it does:
 - Expands glob patterns (unless --no-glob) to find Markdown files.
@@ -213,7 +213,7 @@ def check_code_blocks(
             files_with_errors.append(markdown_file_path)
 
     if files_with_errors:
-        raise RuntimeError("Syntax errors found in the following files:\n" + "\n".join(files_with_errors))
+        raise RuntimeError("Type checking or linting issues found in the following files:\n" + "\n".join(files_with_errors))
 
 
 def main() -> None:

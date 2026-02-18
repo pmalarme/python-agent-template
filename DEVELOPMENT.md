@@ -10,7 +10,7 @@ This is a monorepo hosting multiple Python-based agents. Each agent is an isolat
 
 ## Development Setup
 
-For development, we recommend to use [Python 3.13](https://www.python.org/downloads). A complete definitions of the coding standard and conventions are available in [CODING_STANDARDS.md](CODING_STANDARDS.md).
+For development, we recommend to use [Python 3.13](https://www.python.org/downloads). A complete definition of the coding standards and conventions is available in [CODING_STANDARDS.md](CODING_STANDARDS.md).
 
 Among the agents and for the project root we are using two main tools:
 - [uv](https://github.com/astral-sh/uv) for Python version and virtual environment management, dependency installation, and task running.
@@ -110,7 +110,7 @@ Install the following extensions for VS Code:
 - [Ruff extension](https://marketplace.visualstudio.com/items?itemName=charliermarsh.ruff) by Charlie Marsh which integrates the Ruff linter into VS Code.
 - [Code Spell Checker extension](https://marketplace.visualstudio.com/items?itemName=streetsidesoftware.code-spell-checker) by Street Side Software which helps to catch common spelling errors in code and documentation.
 
-All these extensions are also recommended in the [.vscode/extensions.json](../.vscode/extensions.json) file.
+All these extensions are also recommended in the [.vscode/extensions.json](./.vscode/extensions.json) file.
 
 Open the repo in VS Code, run the command "Python: Select Interpreter," and choose the `.venv` interpreter created by uv. This ensures that linting, type checking, and testing use the same environment as defined for the project.
 
@@ -234,7 +234,7 @@ Set up pre-commit hooks:
 uv run poe pre-commit-install
 ```
 
-This installs the pre-commit hooks defined in [.pre-commit-config.yaml](../.pre-commit-config.yaml) to run before each commit. If you have some issues with the pre-commit hooks, you can run them in a terminal using the following command:
+This installs the pre-commit hooks defined in [.pre-commit-config.yaml](.pre-commit-config.yaml) to run before each commit. If you have some issues with the pre-commit hooks, you can run them in a terminal using the following command:
 
 ```sh
 uv run pre-commit run --all-files
@@ -429,7 +429,7 @@ uv run poe docs
 
 The setup of the pre-commit hooks is done during the [setup](#setup) or using the [pre-commit-install](#pre-commit-install) Poe task.
 
-The pre-commit hooks are configured in the [.pre-commit-config.yaml](../.pre-commit-config.yaml) file and serve as a first line of defense to catch common issues before code is committed and pushed to the repository.
+The pre-commit hooks are configured in the [.pre-commit-config.yaml](.pre-commit-config.yaml) file and serve as a first line of defense to catch common issues before code is committed and pushed to the repository.
 
 They run the following checks and formatting before each commit:
 - Strips trailing whitespace

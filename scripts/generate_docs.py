@@ -118,7 +118,7 @@ def build_agent_docs(
         modules = [load_module_name(agent_dir) for agent_dir in agents]
 
         logger.info("Discovered agents:")
-        for agent_dir, module in zip(agents, modules, strict=False):
+        for agent_dir, module in zip(agents, modules, strict=True):
             logger.info("- %s (module: %s)", agent_dir.name, module)
 
     for agent_dir in agents:
