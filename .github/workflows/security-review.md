@@ -1,6 +1,5 @@
 ---
-description: >
-  Automated security review for pull requests. Analyzes changed files against
+description: Automated security review for pull requests. Analyzes changed files against
   15 security posture categories and posts inline review comments on findings,
   then requests Copilot code review.
 
@@ -8,12 +7,13 @@ on:
   pull_request:
     types: [opened, synchronize]
 
-imports:
-  - ../agents/security-reviewer.agent.md
-
 permissions:
   contents: read
   pull-requests: read
+
+engine:
+  id: copilot
+  agent: security-reviewer
 
 tools:
   github:
