@@ -16,6 +16,7 @@ engine:
   agent: security-reviewer
 
 tools:
+  cache-memory: true
   github:
     toolsets: [repos, pull_requests]
 
@@ -29,7 +30,7 @@ safe-outputs:
   add-reviewer:
     reviewers: [copilot]
     max: 3
-    target: "*"
+    target: "triggering"
 ---
 
 # Security Review
@@ -40,22 +41,31 @@ agent instructions.
 
 ## Instructions
 
-1. **Fetch the pull request diff.** Read the pull request details and all
+1. **Access memory first.** Use cache memory at
+   `/tmp/gh-aw/cache-memory/` to:
+   - Check prior review context for this PR at
+     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
+   - Identify recurring security patterns in this repository from
+     `/tmp/gh-aw/cache-memory/security-review-patterns.json`
+   - Avoid repeating the same inline comments from previous reviews unless the
+     issue remains unresolved in newly changed lines
+
+2. **Fetch the pull request diff.** Read the pull request details and all
    changed files for PR #${{ github.event.pull_request.number }}.
 
-2. **Review every changed file** against all 15 security posture categories
+3. **Review every changed file** against all 15 security posture categories
    from the imported agent instructions. Focus only on the lines that were
    added or modified in the diff — do not flag pre-existing code that was not
    touched.
 
-3. **Post inline review comments** on specific code lines where you find
+4. **Post inline review comments** on specific code lines where you find
    security issues. Each comment must include:
    - The security category (e.g., "Input Validation", "Secrets")
    - Severity: critical, high, medium, low, or informational
    - A clear description of the issue and why it matters
    - A concrete, actionable recommendation or code fix
 
-4. **Submit the review.** After posting all inline comments:
+5. **Submit the review.** After posting all inline comments:
    - If you found any **critical** or **high** severity issues, submit the
      review with `REQUEST_CHANGES` and a summary body listing the top findings.
    - If you found only **medium** or **low** issues, submit with `COMMENT` and
@@ -63,9 +73,16 @@ agent instructions.
    - If no issues were found, submit with `COMMENT` and a body stating the
      changes look secure.
 
-5. **Request Copilot review.** After submitting the security review, add
-   `copilot` as a reviewer on the pull request for an additional code quality
-   review.
+6. **Update memory.** After submitting the review:
+   - Write/update PR-specific memory at
+     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
+     including review timestamp, findings summary, categories found, and files
+     reviewed
+   - Update shared pattern memory at
+     `/tmp/gh-aw/cache-memory/security-review-patterns.json` with recurring
+     issue themes and counts
+
+7. **Request Copilot review.** After submitting the security review, add `copilot` as a reviewer on the pull request for an additional code quality review.
 
 ## Review Guidelines
 
@@ -78,3 +95,7 @@ agent instructions.
   principles documented in `CODING_STANDARDS.md`.
 - **Do not produce false positives.** If you are unsure whether something is a
   real issue, state your uncertainty and classify it as informational.
+- **Use memory intentionally.**
+  - Track patterns: notice if the same issue types keep recurring
+  - Avoid repetition: do not post duplicate comments in the same PR
+  - Build context: use previous review outcomes to improve prioritization
