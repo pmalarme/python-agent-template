@@ -22,14 +22,14 @@ tools:
 safe-outputs:
   create-pull-request-review-comment:
     max: 20
-    footer: "if-body"
+    target: "triggering"
   submit-pull-request-review:
     max: 1
-    target: "triggering"
     footer: false
   add-reviewer:
     reviewers: [copilot]
     max: 1
+    target: "triggering"
 ---
 
 # Security Review

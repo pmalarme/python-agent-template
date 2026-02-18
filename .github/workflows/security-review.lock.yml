@@ -23,7 +23,7 @@
 #
 # Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings, then requests Copilot code review.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"d0e48e418a4ef46187a36e4016998439ab7a03812880f4c080fd947047878f30"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"eff26dc915998b86cd77dc770d1402df3042c48c2e0635c97982a4d86618e5ad"}
 
 name: "Security Review"
 "on":
@@ -1163,7 +1163,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":20,\"side\":\"RIGHT\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"footer\":\"if-body\",\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":20,\"side\":\"RIGHT\",\"target\":\"triggering\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"footer\":\"none\",\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
