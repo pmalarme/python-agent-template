@@ -1,4 +1,4 @@
-name: docs
+name: "Python: docs"
 
 on:
   workflow_dispatch:
@@ -31,14 +31,11 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
         with:
-          python-version: "3.13"
-          enable-cache: true
-
-      - name: Install dependencies (with docs group)
-        run: uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --group docs
+          include-docs: "true"
+          extra-args: "--all-packages -U --prerelease=if-necessary-or-explicit"
 
       - name: Build documentation
         run: uv run python scripts/generate_docs.py

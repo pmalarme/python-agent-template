@@ -125,10 +125,16 @@ This solution is a monorepo hosting multiple Python-based agents. Each agent is 
 ```
 Repo root
 ├─ .github/                                    # GitHub configuration and automation
+│  ├─ actions/                                  # reusable composite actions
+│  │  └─ setup-python-env/                      # set up uv + install dependencies
 │  ├─ workflows/                               # GitHub Actions workflows
-│  │  ├─ checks.yml                            # lint, type-check, test on PRs and pushes
-│  │  ├─ docs.yml                              # build Sphinx docs, deploy to GitHub Pages
-│  │  ├─ release.yml                           # build and publish packages
+│  │  ├─ python-code-quality.yml                # format, lint, type-check on PRs
+│  │  ├─ python-tests.yml                      # test on PRs
+│  │  ├─ python-package-build.yml              # build changed agent wheels on PR
+│  │  ├─ python-docs.yml                       # build Sphinx docs, deploy to GitHub Pages
+│  │  ├─ python-release.yml                    # build and publish agent packages
+│  │  ├─ python-docker-build.yml               # build and smoke-test agent Docker images
+│  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
 │  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
 │  │  ├─ security-review.md                    # agentic workflow (security review)
 │  │  └─ security-review.lock.yml              # compiled agentic workflow (generated)
@@ -518,7 +524,7 @@ Each agent is an independent package with its own version in its `pyproject.toml
 
 #### Release workflow
 
-The [release workflow](.github/workflows/release.yml) runs on GitHub release events and `workflow_dispatch`. It:
+The [release workflow](.github/workflows/python-release.yml) triggers on pushes to `main` that change agent sources or pyproject files, and on `workflow_dispatch`. It:
 
 1. Checks out the code and installs dependencies.
 2. Runs `poe build-changed` to build only agents with changes.
@@ -540,7 +546,7 @@ By default, packages are published to GitHub Packages. To publish to a different
    explicit = true
    ```
 
-2. **`.github/workflows/release.yml`** — update the environment variables in the publish step:
+2. **`.github/workflows/python-release.yml`** — update the environment variables in the publish step:
 
    ```yaml
    - name: Publish to PyPI
@@ -554,7 +560,7 @@ By default, packages are published to GitHub Packages. To publish to a different
 
 ### Documentation
 
-Documentation is built using Sphinx and published to GitHub Pages via the [docs workflow](.github/workflows/docs.yml).
+Documentation is built using Sphinx and published to GitHub Pages via the [docs workflow](.github/workflows/python-docs.yml).
 
 - Install docs deps: `uv run poe docs-install`
 - Build locally: `uv run poe docs`

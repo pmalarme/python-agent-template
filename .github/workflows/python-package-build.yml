@@ -1,0 +1,41 @@
+name: "Python: package build"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+    paths:
+      - "agents/*/pyproject.toml"
+      - "agents/*/src/**"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build changed packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Build changed agent packages
+        run: uv run poe build-changed
+
+      - name: Verify wheels were produced
+        run: |
+          shopt -s nullglob
+          WHEELS=(dist/*.whl)
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+            echo "::notice::No wheels in dist/ — no changed agents to build."
+          else
+            echo "Built ${#WHEELS[@]} wheel(s):"
+            ls -lh dist/
+          fi

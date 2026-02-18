@@ -1,14 +1,9 @@
-name: docker
+name: "Python: docker build & smoke test"
 
 on:
   workflow_dispatch:
   pull_request:
-    paths:
-      - "agents/*/Dockerfile"
-      - "agents/*/src/**"
-      - "agents/*/pyproject.toml"
-  push:
-    branches: ["main"]
+    branches: ["main", "feature*", "fix*"]
     paths:
       - "agents/*/Dockerfile"
       - "agents/*/src/**"
@@ -39,8 +34,8 @@ jobs:
             | jq -Rcn '[inputs]')
           echo "agents=$agents" >> "$GITHUB_OUTPUT"
 
-  build:
-    name: build ${{ matrix.agent }}
+  build-and-test:
+    name: build & smoke test ${{ matrix.agent }}
     needs: detect
     if: ${{ needs.detect.outputs.agents != '[]' }}
     runs-on: ubuntu-latest

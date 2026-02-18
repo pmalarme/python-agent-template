@@ -260,7 +260,7 @@ args = [{ name = "files", default = ".", positional = true, multiple = true }]
 # ── Package registry ──────────────────────────────────────────────────────────
 # GitHub Packages does NOT support a Python/pip registry.
 # Uncomment ONE of the blocks below and configure the matching
-# UV_PUBLISH_URL / UV_PUBLISH_TOKEN in .github/workflows/release.yml.
+# UV_PUBLISH_URL / UV_PUBLISH_TOKEN in .github/workflows/python-release.yml.
 #
 # Azure Artifacts (recommended for private packages):
 # [[tool.uv.index]]

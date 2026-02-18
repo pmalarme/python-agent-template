@@ -31,14 +31,26 @@ flowchart TB
         H6[uv-lock sync]
     end
 
-    subgraph L3["3. CI -  Quality gate"]
-        direction LR
-        C1["Ruff format + lint"]
-        C2[Pyright strict]
-        C3[MyPy strict]
-        C4[Bandit]
-        C5[PyTest + coverage]
-        C6[Markdown code lint]
+    subgraph L3["3. CI - Quality gate"]
+        direction TB
+        subgraph L3a["Code quality"]
+            direction LR
+            C0[Lock verify]
+            C1["Ruff format + lint"]
+            C2[Pyright strict]
+            C3[MyPy strict]
+            C4[Bandit]
+            C5[Markdown code lint]
+        end
+        subgraph L3b["Tests"]
+            direction LR
+            T1[PyTest + coverage]
+        end
+        subgraph L3c["Build validation"]
+            direction LR
+            B1[Wheel build]
+            B2[Docker build + smoke test]
+        end
     end
 
     subgraph L4["4. CI - Security Scanning"]
@@ -75,8 +87,8 @@ Each layer catches different classes of issues:
 | --- | --- | --- |
 | **Editor** | As you type | Type errors, formatting, AI-aware context via custom instructions |
 | **Pre-commit** | On `git commit` (staged files) | Style drift, security anti-patterns, broken configs, stale lockfiles |
-| **CI quality gate** | On PR / push | Full repo-wide type safety, test regressions, code quality |
-| **CI security** | On PR / push / schedule | Dataflow vulnerabilities, outdated dependencies, security posture gaps |
+| **CI quality gate** | On PR | Lock verification, full repo-wide type safety, code quality, test regressions, coverage, build validation. Split into three sub-layers: *code quality* (lock-verify, format, lint, type checks, Bandit, markdown lint), *tests* (PyTest + coverage), and *build validation* (wheel build + Docker build & smoke test, both path-filtered) |
+| **CI security** | On PR / push to main / schedule | Dataflow vulnerabilities, outdated dependencies, security posture gaps |
 | **Copilot Review** | On PR (after security scan) | AI-powered code review with suggestions and inline comments |
 | **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
@@ -113,10 +125,15 @@ uv run poe check
 ```
 Repo root
 ├─ .github/                                    # GitHub configuration and automation
+│  ├─ actions/                                  # reusable composite actions
+│  │  └─ setup-python-env/                      # set up uv + install dependencies
 │  ├─ workflows/                               # GitHub Actions workflows
-│  │  ├─ checks.yml                            # lint, type-check, test on PRs and pushes
-│  │  ├─ docs.yml                              # build Sphinx docs, deploy to GitHub Pages
-│  │  ├─ release.yml                           # build and publish agent packages
+│  │  ├─ python-code-quality.yml               # format, lint, type-check, security scan
+│  │  ├─ python-tests.yml                      # pytest across Python matrix
+│  │  ├─ python-docs.yml                       # build Sphinx docs, deploy to GitHub Pages
+│  │  ├─ python-release.yml                    # build and publish agent packages
+│  │  ├─ python-package-build.yml              # build changed agent wheels on PR
+│  │  ├─ python-docker-build.yml               # build and smoke-test agent Docker images
 │  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
 │  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
 │  │  ├─ security-review.md                    # agentic workflow (security review)
@@ -225,22 +242,40 @@ flowchart TD
     S7 --> S8["uv-lock sync<br/>(if manifests changed)"]
 ```
 
-### CI workflows — on every PR and push
+### CI workflows — on every PR
+
+Every pull request triggers up to six parallel workflows. Code quality and tests run on all PRs across a Python 3.10–3.13 matrix. Package build and Docker build are path-filtered — they only run when agent source code, pyproject files, or Dockerfiles change. CodeQL and the Copilot security agent provide additional security coverage.
 
 ```mermaid
 flowchart TD
-    subgraph trigger["Trigger: pull_request / push"]
+    subgraph trigger["Trigger: pull_request"]
         direction LR
         T1["PR opened / sync"]
-        T2["Push to main,<br/>feature*, fix*"]
     end
 
-    trigger --> CW["checks.yml<br/>Python 3.10–3.13 matrix"]
-    trigger --> CQ["codeql-analysis.yml<br/>CodeQL SAST"]
-    trigger --> SR["security-review.md<br/>Copilot security agent"]
+    trigger --> CQ_QUAL["python-code-quality.yml<br/>Python 3.10–3.13 matrix"]
+    trigger --> CQ_TEST["python-tests.yml<br/>Python 3.10–3.13 matrix"]
+    trigger --> PB["python-package-build.yml<br/>Wheel build<br/>(path-filtered)"]
+    trigger --> DK["python-docker-build.yml<br/>Docker build &amp; smoke test<br/>(path-filtered)"]
+    trigger --> CQ["codeql-analysis.yml<br/>CodeQL SAST<br/>(PR + push to main only)"]
+    trigger --> SR["security-review.md<br/>Copilot security agent<br/>(PR only)"]
 
-    CW --> CW1["uv sync"]
-    CW1 --> CW2["poe check<br/>(full quality gate)"]
+    CQ_QUAL --> CQ_QUAL1["uv sync"]
+    CQ_QUAL1 --> CQ_QUAL1b["Lock verify"]
+    CQ_QUAL1b --> CQ_QUAL2["Format + Lint"]
+    CQ_QUAL2 --> CQ_QUAL3["Pyright + MyPy"]
+    CQ_QUAL3 --> CQ_QUAL4["Bandit + Markdown lint"]
+
+    CQ_TEST --> CQ_TEST1["uv sync"]
+    CQ_TEST1 --> CQ_TEST2["poe test"]
+
+    PB --> PB1["uv sync"]
+    PB1 --> PB2["poe build-changed"]
+    PB2 --> PB3["Verify wheels"]
+
+    DK --> DK1["Detect changed agents<br/>with Dockerfiles"]
+    DK1 --> DK2["docker build"]
+    DK2 --> DK3["Smoke test<br/>(--help)"]
 
     CQ --> CQ1["CodeQL init<br/>(Python + Actions)"]
     CQ1 --> CQ2["Autobuild"]
@@ -255,6 +290,8 @@ flowchart TD
 
 ### Release workflow — on push to main or manual dispatch
 
+When agent source code or `pyproject.toml` files are pushed to `main`, the release workflow automatically builds only the changed agents, creates per-agent tags (`<agent>-v<version>`), publishes GitHub releases with wheel assets and PR-based changelogs, and optionally uploads packages to the configured registry. The [monorepo release workflow](.github/workflows/monorepo-release.yml) handles shared infrastructure releases separately.
+
 ```mermaid
 flowchart LR
     R0["Push to main<br/>(agent changes)"] --> R1["poe build-changed"]
@@ -266,6 +303,8 @@ flowchart LR
 ```
 
 ### Docs workflow — on push to main
+
+When documentation sources, agent source code, or the docs generation script change on `main`, the docs workflow installs Sphinx dependencies, generates unified and per-agent documentation, and deploys the result to GitHub Pages.
 
 ```mermaid
 flowchart LR
@@ -288,7 +327,8 @@ flowchart TD
     subgraph pr["On every PR"]
         direction TB
         SR["Copilot security agent<br/>15 posture categories<br/>Inline review comments"]
-        CHECKS["Quality gate<br/>Ruff · Pyright · MyPy<br/>Bandit · Tests"]
+        QUAL["Code quality<br/>Ruff · Pyright · MyPy<br/>Bandit · Markdown lint"]
+        TESTS["Tests<br/>pytest across<br/>Python 3.10–3.13"]
     end
 
     always --> pr
@@ -311,6 +351,7 @@ flowchart TD
 
 | Task | What it does |
 | --- | --- |
+| `poe lock-verify` | Verify `uv.lock` is in sync with `pyproject.toml` |
 | `poe fmt` | Ruff format (Black-like, 120-col, import sorting) |
 | `poe lint` | Ruff lint (pycodestyle, pyflakes, bugbear, pylint, Bandit rules, ...) |
 | `poe pyright` | Pyright strict type checking |
@@ -411,7 +452,7 @@ agent2-v0.3.0        # different agent, independent version
 
 ### Agent release workflow
 
-The [agent release workflow](.github/workflows/release.yml) triggers on pushes to `main` that change agent sources or pyproject files, and on `workflow_dispatch`. It:
+The [agent release workflow](.github/workflows/python-release.yml) triggers on pushes to `main` that change agent sources or pyproject files, and on `workflow_dispatch`. It:
 
 1. Runs `poe build-changed` to build only agents with modified files.
 2. Iterates over the wheels in `dist/`, extracting agent name and version from each filename.
@@ -438,14 +479,14 @@ Publishing is **commented out** by default — the workflow only creates tags an
 1. [Create a feed](https://learn.microsoft.com/azure/devops/artifacts/quickstarts/python-packages) in your Azure DevOps organization.
 2. Generate a Personal Access Token (PAT) with **Packaging > Read & Write** scope.
 3. Add the PAT as a repository secret named `AZURE_ARTIFACTS_TOKEN` (Settings → Secrets and variables → Actions).
-4. Uncomment the "Publish to Azure Artifacts" block in `.github/workflows/release.yml`.
+4. Uncomment the "Publish to Azure Artifacts" block in `.github/workflows/python-release.yml`.
 5. Uncomment the Azure `[[tool.uv.index]]` block in `pyproject.toml` and fill in your org/project/feed.
 
 #### PyPI (public packages)
 
 1. [Create an API token](https://pypi.org/manage/account/token/) on PyPI.
 2. Add it as a repository secret named `PYPI_TOKEN`.
-3. Uncomment the "Publish to PyPI" block in `.github/workflows/release.yml`.
+3. Uncomment the "Publish to PyPI" block in `.github/workflows/python-release.yml`.
 4. Uncomment the PyPI `[[tool.uv.index]]` block in `pyproject.toml`.
 
 > **Note:** GitHub Packages does **not** support a Python/pip registry.
@@ -527,7 +568,7 @@ The `.github/instructions/` directory contains context-aware instructions that g
 
 ## Documentation
 
-Documentation is built using Sphinx and published to GitHub Pages via the [docs workflow](.github/workflows/docs.yml).
+Documentation is built using Sphinx and published to GitHub Pages via the [docs workflow](.github/workflows/python-docs.yml).
 
 ```sh
 # Install docs dependencies

@@ -1,17 +1,16 @@
-name: checks
+name: "Python: tests"
 
 on:
   workflow_dispatch:
   pull_request:
-  push:
     branches: ["main", "feature*", "fix*"]
 
 permissions:
   contents: read
 
 jobs:
-  lint-test:
-    name: lint, type-check, test (python ${{ matrix.python-version }})
+  tests:
+    name: tests (python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -24,14 +23,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@v5
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
         with:
           python-version: ${{ matrix.python-version }}
-          enable-cache: true
 
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
-
-      - name: Run checks
-        run: uv run poe check
+      - name: Run tests
+        run: uv run poe test

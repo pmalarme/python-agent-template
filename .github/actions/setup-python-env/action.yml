@@ -1,0 +1,34 @@
+name: "Setup Python environment"
+description: "Set up uv with Python and install project dependencies."
+
+inputs:
+  python-version:
+    description: "Python version to install (e.g. '3.13', '3.10')."
+    required: false
+    default: "3.13"
+  include-docs:
+    description: "Install the docs dependency group (sphinx, sphinx_autodoc_typehints, …)."
+    required: false
+    default: "false"
+  extra-args:
+    description: "Additional arguments appended to the `uv sync` command."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        args="--all-extras --dev"
+        if [[ "${{ inputs.include-docs }}" == "true" ]]; then
+          args="$args --group docs"
+        fi
+        uv sync $args ${{ inputs.extra-args }}
