@@ -23,7 +23,7 @@
 #
 # Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings, then requests Copilot code review.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fcd90e0f8df0ddee513d3c30f7e8314ff9a1c789107abd47cd018a8a5e354e1b","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"fcf4ec8e200afb9cf705aa7eca88dd83e01c9f2db564ba8a54ebb4d187c9f530","compiler_version":"v0.46.3"}
 
 name: "Security Review"
 "on":
@@ -289,10 +289,10 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: memory-${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-${{ github.workflow }}-${{ github.event.pull_request.number }}-
+            memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1218,5 +1218,5 @@ jobs:
       - name: Save cache-memory to cache (default)
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: memory-${{ github.workflow }}-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory

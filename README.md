@@ -62,7 +62,7 @@ flowchart TB
 
     subgraph L5["5. Copilot Review"]
         direction LR
-        CR1[Copilot code review — assigned by security agent + branch protection]
+        CR1[Copilot code review — assigned automatically]
         CR2[AI-powered suggestions and comments]
     end
 
@@ -89,7 +89,7 @@ Each layer catches different classes of issues:
 | **Pre-commit** | On `git commit` (staged files) | Style drift, security anti-patterns, broken configs, stale lockfiles |
 | **CI quality gate** | On PR | Lock verification, full repo-wide type safety, code quality, test regressions, coverage, build validation. Split into three sub-layers: *code quality* (lock-verify, format, lint, type checks, Bandit, markdown lint), *tests* (PyTest + coverage), and *build validation* (wheel build + Docker build & smoke test, both path-filtered) |
 | **CI security** | On PR / push to main / schedule | Dataflow vulnerabilities, outdated dependencies, security posture gaps |
-| **Copilot Review** | On PR (via security agent + branch protection) | AI-powered code review with suggestions and inline comments |
+| **Copilot Review** | On PR (after security review) | AI-powered code review with suggestions and inline comments |
 | **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
 ---
@@ -533,18 +533,26 @@ The agentic workflow at [`.github/workflows/security-review.md`](.github/workflo
 4. Submits a consolidated review (`REQUEST_CHANGES` for critical/high, `COMMENT` otherwise).
 5. Requests Copilot as a reviewer for additional code quality coverage.
 
+>[!IMPORTANT]
+> The `security-review.md` workflow is using the custom agent `.github/agents/security-reviewer.agent.md` which is defined in this repository. To be able to use this agent with `copilot` AI Engine, `COPILOT_GITHUB_TOKEN` secret must be added to the repository with a fine-grained PAT that has `Copilot Requests: Read-only` scope on public repositories. For more information see the [documentation](https://github.github.com/gh-aw/reference/auth/#copilot_github_token).
+
 ### Copilot code review
 
-The `add-reviewer` safe-output in the workflow assigns Copilot as a PR reviewer after the security review completes. This requires a fine-grained PAT stored as the `COPILOT_GITHUB_TOKEN` repository secret with:
+The [`add-reviewer` safe-output](https://github.github.com/gh-aw/reference/safe-outputs/#add-reviewer-add-reviewer) in the workflow assigns Copilot as a PR reviewer after the security review completes. This requires a fine-grained PAT stored as the [`GH_AW_AGENT_TOKEN` repository secret]https://github.github.com/gh-aw/reference/auth/#gh_aw_agent_token) with:
 
-- **Pull requests: Read and write**
-- **Copilot Requests: Read-only**
+- Resource owner: Your user account
+- Repository access: “Public repositories” or select specific repos
+- Repository permissions:
+    - Actions: Write
+    - Contents: Write
+    - Issues: Write
+    - Pull requests: Write
 
-As an additional safeguard, configure **branch protection rules** to require Copilot review on all PRs (not just those that trigger the security workflow):
+<!-- As an additional safeguard, configure **branch protection rules** to require Copilot review on all PRs (not just those that trigger the security workflow):
 
 1. Go to **Settings → Rules → Rulesets** (or **Branches → Branch protection rules**).
 2. Under **Require a pull request before merging**, add `copilot` as a **required reviewer**.
-3. Copilot will automatically review every PR targeting the protected branch.
+3. Copilot will automatically review every PR targeting the protected branch. -->
 
 ### Compiling agentic workflows
 

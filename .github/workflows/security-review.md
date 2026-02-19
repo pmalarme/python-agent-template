@@ -16,8 +16,7 @@ engine:
   agent: security-reviewer
 
 tools:
-  cache-memory:
-    key: "memory-${{ github.workflow }}-${{ github.event.pull_request.number }}"
+  cache-memory: true
   github:
     toolsets: [repos, pull_requests]
 
@@ -32,6 +31,7 @@ safe-outputs:
     reviewers: [copilot]
     max: 3
     target: "triggering"
+    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
 ---
 
 # Security Review
@@ -83,7 +83,7 @@ agent instructions.
      `/tmp/gh-aw/cache-memory/security-review-patterns.json` with recurring
      issue themes and counts
 
-7. **Request Copilot review.** After submitting the security review, add `copilot` as a reviewer on the pull request for an additional code quality review.
+7. **Request Copilot review.** After submitting the security review, add Copilot as a reviewer on the pull request for an additional code quality review.
 
 ## Review Guidelines
 
