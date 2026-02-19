@@ -7,6 +7,10 @@ on:
     name: create-issue
     events: [pull_request_review_comment]
 
+concurrency:
+  group: create-issue-${{ github.event.comment.id }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
   pull-requests: read

@@ -23,7 +23,7 @@
 #
 # Creates a GitHub issue from a PR review comment when a user replies with the /create-issue command.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"6ce0925dd5c88c9c0c08f269d35e79ba5826861e9f1d750907eefc1a21fee9e7","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"3e9b343d5d564d43e2479c07df250d6faa3cd71f7957e40e4ef116609158c500","compiler_version":"v0.46.3"}
 
 name: "PR Review Comment — Create Issue"
 "on":
@@ -35,7 +35,8 @@ name: "PR Review Comment — Create Issue"
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}"
+  cancel-in-progress: false
+  group: create-issue-${{ github.event.comment.id }}
 
 run-name: "PR Review Comment — Create Issue"
 
