@@ -34,5 +34,15 @@ runs:
         if [[ "$INCLUDE_DOCS" == "true" ]]; then
           args="$args --group docs"
         fi
-        # shellcheck disable=SC2086  # intentional word-splitting for uv flags
+        if [[ -n "$EXTRA_ARGS" ]]; then
+          # Validate each whitespace-split token: must start with '-' and contain only safe flag characters.
+          # NOTE: '--' (end-of-options marker) is intentionally allowed; positional args would fail validation.
+          for arg in $EXTRA_ARGS; do
+            if [[ ! "$arg" =~ ^-[a-zA-Z0-9=._:/@+-]+$ ]]; then
+              echo "::error::Unsafe extra-args token: '$arg'. Each token must start with '-' and contain only safe flag characters." >&2
+              exit 1
+            fi
+          done
+        fi
+        # shellcheck disable=SC2086  # intentional word-splitting for uv flags (all tokens validated above)
         uv sync $args $EXTRA_ARGS
