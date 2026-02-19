@@ -10,7 +10,7 @@ on:
 
 permissions:
   contents: write          # create tags, releases, and upload assets
-  packages: write
+  # packages: write  # uncomment when a publish step is enabled
 
 jobs:
   release:
