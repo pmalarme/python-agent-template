@@ -23,7 +23,7 @@
 #
 # Triages PR review comments. If the comment raises an issue that needs fixing, replies tagging @copilot to fix it directly on the PR. If low priority, creates an issue for later. If not relevant, resolves with a reply.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"0b44b9f4cc4d0349fe23357a62776d7483607c761560b73dffce75e24c0219c3","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"1e751f45efe3a0408cd1bd2d316ec761b0ef46c81d6cfe28848f96a71f247df1","compiler_version":"v0.46.3"}
 
 name: "PR Review Comment Handler"
 "on":

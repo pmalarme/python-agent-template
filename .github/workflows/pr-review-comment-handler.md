@@ -19,8 +19,10 @@ tools:
 safe-outputs:
   reply-to-pull-request-review-comment:
     max: 10
+    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
   resolve-pull-request-review-thread:
     max: 10
+    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
   create-issue:
     max: 10
   noop:
