@@ -69,7 +69,9 @@ jobs:
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
 
-          # Push using explicit URL — token never stored in .git/config
+          # Push using explicit URL — token never stored in .git/config.
+          # WARNING: do not enable ACTIONS_STEP_DEBUG on production runs of
+          # this workflow; debug logs expose the full push URL including the token.
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
           git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
 

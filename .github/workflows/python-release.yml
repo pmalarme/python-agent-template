@@ -46,7 +46,9 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Build authenticated URL — token never stored in .git/config
+          # Build authenticated URL — token never stored in .git/config.
+          # WARNING: do not enable ACTIONS_STEP_DEBUG on production runs of
+          # this workflow; debug logs expose the full push URL including the token.
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
           PUSH_URL="https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git"
 
