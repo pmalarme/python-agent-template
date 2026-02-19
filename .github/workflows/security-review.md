@@ -31,7 +31,7 @@ safe-outputs:
   add-reviewer:
     reviewers: [copilot]
     max: 3
-    target: "triggering"
+    target: "*"
 ---
 
 # Security Review
