@@ -33,6 +33,12 @@ def test_validate_string_is_not_blank_rejects_empty() -> None:
         validate_string_is_not_blank("", "name")
 
 
+def test_validate_string_is_not_blank_rejects_whitespace_only() -> None:
+    """Raises when string contains only whitespace."""
+    with pytest.raises(EmptyStringError, match="name"):
+        validate_string_is_not_blank("   ", "name")
+
+
 def test_decorator_raises_missing_parameter() -> None:
     """Decorator raises when required arg is missing."""
 
@@ -69,3 +75,16 @@ def test_decorator_rejects_blank_and_allows_deduped_order() -> None:
         greet("   ", "Doe")
 
     assert greet("Ada", "Lovelace") == "Ada Lovelace"
+
+
+def test_decorator_with_full_bind() -> None:
+    """Decorator uses full bind when use_partial_bind=False."""
+
+    @require_non_blank_strings("first", use_partial_bind=False)  # type: ignore[untyped-decorator]
+    def greet(first: str) -> str:
+        return f"hi {first}"
+
+    assert greet("Ada") == "hi Ada"
+
+    with pytest.raises(EmptyStringError, match="first"):
+        greet("   ")
