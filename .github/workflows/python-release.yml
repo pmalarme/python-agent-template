@@ -57,6 +57,12 @@ jobs:
             VERSION=$(echo "$BASENAME" | cut -d- -f2)
             TAG="${NAME}-v${VERSION}"
 
+            # Validate NAME and VERSION to prevent unexpected values from flowing into git commands
+            if [[ ! "$NAME" =~ ^[a-zA-Z0-9_-]+$ ]] || [[ ! "$VERSION" =~ ^[0-9a-zA-Z._-]+$ ]]; then
+              echo "::error::Unexpected wheel name/version format in '${BASENAME}' — skipping." >&2
+              continue
+            fi
+
             # Skip if tag already exists
             if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
               echo "::notice::Tag ${TAG} already exists — skipping."
