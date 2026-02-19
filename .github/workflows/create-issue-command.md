@@ -47,7 +47,14 @@ when a user requests it with the `/create-issue` command.
    review comment (the one being replied to) to get the original finding —
    its body, file path, line number, and context.
 
-3. **Create a GitHub issue** with:
+3. **Check for duplicate issues.** Search open issues in the repository for
+   an existing issue that already tracks this review finding (e.g., matching
+   the file path, line number, or review comment URL). If a matching issue
+   already exists, **skip creation** and reply to the review comment with a
+   link to the existing issue (e.g., "An issue already exists for this
+   finding: #<number>.").
+
+4. **Create a GitHub issue** with:
    - A clear, descriptive title summarizing the review finding.
    - A body that includes:
      - A description of the issue or suggestion from the original review
@@ -57,7 +64,7 @@ when a user requests it with the `/create-issue` command.
      - A link back to the PR: `Related PR: #${{ github.event.pull_request.number }}`.
      - A link to the review comment for context.
 
-4. **Reply to the review comment** confirming the issue was created. Include
+5. **Reply to the review comment** confirming the issue was created. Include
    the issue number and link (e.g., "Created issue #<number> to track this
    finding.").
 
