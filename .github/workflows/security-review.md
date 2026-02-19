@@ -42,24 +42,37 @@ agent instructions.
      `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`. It can contain information about previous review findings, categories, files reviewed, and timestamps for this PR.
    - Identify recurring security patterns in this repository from
      `/tmp/gh-aw/cache-memory/security-review-patterns.json`. It can contain information about recurring security issues and patterns in the repository.
-   - Avoid repeating the same inline comments from previous reviews if the previous comment is not resolved yet nor outdated (e.g., if the same issue is still present in the code or if the code has not changed since the last review).
 
-2. **Fetch the pull request diff.** Read the pull request details and all
+2. **Check existing review threads.** Before posting any new comment, use
+   the `pull_requests` toolset to fetch all existing review comment threads
+   for PR #${{ github.event.pull_request.number }}. For each thread:
+   - Record the file path, line number, and body of the original comment.
+   - Record whether the thread is **resolved** (i.e., marked as resolved by
+     a reviewer or via the `/create-issue` command).
+   - **Do not re-post a comment** for any finding that already has a
+     resolved thread on the same file and line. Even if the finding is still
+     technically present in the code, do not re-open resolved threads by
+     posting a duplicate comment.
+   - **Do not re-post a comment** for any finding that already has an
+     unresolved thread on the same file and line and whose code has not
+     changed since the last review.
+
+3. **Fetch the pull request diff.** Read the pull request details and all
    changed files for PR #${{ github.event.pull_request.number }}.
 
-3. **Review every changed file** against all 15 security posture categories
+4. **Review every changed file** against all 15 security posture categories
    from the imported agent instructions. Focus only on the lines that were
    added or modified in the diff — do not flag pre-existing code that was not
    touched.
 
-4. **Post inline review comments** on specific code lines where you find
+5. **Post inline review comments** on specific code lines where you find
    security issues. Each comment must include:
    - The security category (e.g., "Input Validation", "Secrets")
    - Severity: critical, high, medium, low, or informational
    - A clear description of the issue and why it matters
    - A concrete, actionable recommendation or code fix
 
-5. **Submit the review.** After posting all inline comments:
+6. **Submit the review.** After posting all inline comments:
    - If you found any **critical** or **high** severity issues, submit the
      review with `REQUEST_CHANGES` and a summary body listing the top findings.
    - If you found only **medium** or **low** issues, submit with `COMMENT` and
@@ -75,7 +88,7 @@ agent instructions.
      have been resolved or are outdated, submit with `COMMENT` and include
      a summary of what was resolved.
 
-6. **Update memory.** After submitting the review:
+7. **Update memory.** After submitting the review:
    - Write/update PR-specific memory at
      `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
      including review timestamp, findings summary, categories found, and files
