@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Setup Python environment
         uses: ./.github/actions/setup-python-env
@@ -45,6 +45,10 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
+          # Build authenticated URL — token never stored in .git/config
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          PUSH_URL="https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${{ github.repository }}.git"
+
           for WHL in "${WHEELS[@]}"; do
             # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
             BASENAME=$(basename "$WHL")
@@ -62,7 +66,7 @@ jobs:
 
             # Create annotated tag
             git tag -a "$TAG" -m "Release ${NAME} v${VERSION}"
-            git push origin "$TAG"
+            git push "$PUSH_URL" "$TAG"
 
             # Generate changelog from merged PRs since previous tag for this agent
             PREV_TAG=$(git tag --list "${NAME}-v*" --sort=-v:refname \
