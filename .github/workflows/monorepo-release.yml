@@ -29,10 +29,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Read monorepo version
         id: version
@@ -45,8 +45,9 @@ jobs:
 
       - name: Check if tag exists
         id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
           if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
             echo "::notice::Tag ${TAG} already exists — skipping release."
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -58,16 +59,21 @@ jobs:
         if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
-          TAG="${{ steps.version.outputs.tag }}"
-          VERSION="${{ steps.version.outputs.version }}"
-
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
-          git push origin "$TAG"
+
+          # Push via inline credential helper — GH_TOKEN used directly so it stays masked by GitHub Actions;
+          # token is never written to .git/config and never embedded in a URL.
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          git -c "credential.helper=!f() { printf 'username=x-access-token\npassword=%s\n' \"${GH_TOKEN}\"; }; f" \
+            push "https://${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
 
           # Generate release notes from merged PRs since previous monorepo tag
           PREV_TAG=$(git tag --list "v*" --sort=-v:refname \
