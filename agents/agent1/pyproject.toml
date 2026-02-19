@@ -50,7 +50,7 @@ timeout = 120
 extend = "../../pyproject.toml"
 
 [tool.coverage.run]
-omit = ["**/__init__.py"]
+omit = ["**/__init__.py", "**/__main__.py"]
 
 [tool.pyright]
 extends = "../../pyproject.toml"
@@ -83,7 +83,7 @@ include = "../../shared_tasks.toml"
 # Project-specific overrides to scope checks/coverage to this agent; shared tasks remain available for cross-agent runs
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
 bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1 docs/source"
-test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered"
+test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered --cov-fail-under=100"
 docs = "uv run python ../../scripts/generate_docs.py --agents-only --agents agent1"
 
 [build-system]
