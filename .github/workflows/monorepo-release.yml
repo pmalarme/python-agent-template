@@ -69,11 +69,11 @@ jobs:
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
 
-          # Push using explicit URL — token never stored in .git/config.
-          # WARNING: do not enable ACTIONS_STEP_DEBUG on production runs of
-          # this workflow; debug logs expose the full push URL including the token.
+          # Push via inline credential helper — GH_TOKEN used directly so it stays masked by GitHub Actions;
+          # token is never written to .git/config and never embedded in a URL.
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
+          git -c "credential.helper=!f() { printf 'username=x-access-token\npassword=%s\n' \"${GH_TOKEN}\"; }; f" \
+            push "https://${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
 
           # Generate release notes from merged PRs since previous monorepo tag
           PREV_TAG=$(git tag --list "v*" --sort=-v:refname \

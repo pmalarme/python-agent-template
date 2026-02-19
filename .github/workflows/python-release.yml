@@ -46,11 +46,10 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Build authenticated URL — token never stored in .git/config.
-          # WARNING: do not enable ACTIONS_STEP_DEBUG on production runs of
-          # this workflow; debug logs expose the full push URL including the token.
+          # Authenticate via inline credential helper — GH_TOKEN used directly so it stays masked by GitHub Actions;
+          # token is never written to .git/config and never embedded in a URL.
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          PUSH_URL="https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git"
+          PUSH_URL="https://${REMOTE_HOST}/${GH_REPOSITORY}.git"
 
           for WHL in "${WHEELS[@]}"; do
             # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
@@ -69,7 +68,8 @@ jobs:
 
             # Create annotated tag
             git tag -a "$TAG" -m "Release ${NAME} v${VERSION}"
-            git push "$PUSH_URL" "$TAG"
+            git -c "credential.helper=!f() { printf 'username=x-access-token\npassword=%s\n' \"${GH_TOKEN}\"; }; f" \
+              push "$PUSH_URL" "$TAG"
 
             # Generate changelog from merged PRs since previous tag for this agent
             PREV_TAG=$(git tag --list "${NAME}-v*" --sort=-v:refname \
