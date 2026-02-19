@@ -470,6 +470,8 @@ The [monorepo release workflow](.github/workflows/monorepo-release.yml) triggers
 3. Creates an annotated tag and pushes it.
 4. Creates a GitHub release with release notes generated from merged PRs.
 
+Both the agent and monorepo release workflows require the automatic `GITHUB_TOKEN` with `contents: write` permission to create tags and GitHub releases. No manual secret setup is needed — GitHub provides this token automatically for every workflow run. The token is not persisted in the checkout step; it is explicitly injected only in the release step to minimize credential exposure.
+
 ### Setting up publishing
 
 Publishing is **commented out** by default — the workflow only creates tags and GitHub releases. To enable it:
