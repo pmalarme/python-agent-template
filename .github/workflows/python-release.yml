@@ -46,9 +46,11 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Build authenticated URL — token never stored in .git/config
+          # Authenticate via Authorization header — token not embedded in URL, never written to .git/config
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          PUSH_URL="https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git"
+          ENCODED_TOKEN=$(printf '%s' "x-access-token:${GH_TOKEN}" | base64 -w0)
+          PUSH_CMD=(git -c "http.extraHeader=Authorization: basic ${ENCODED_TOKEN}"
+            push "https://${REMOTE_HOST}/${GH_REPOSITORY}.git")
 
           for WHL in "${WHEELS[@]}"; do
             # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
@@ -67,7 +69,7 @@ jobs:
 
             # Create annotated tag
             git tag -a "$TAG" -m "Release ${NAME} v${VERSION}"
-            git push "$PUSH_URL" "$TAG"
+            "${PUSH_CMD[@]}" "$TAG"
 
             # Generate changelog from merged PRs since previous tag for this agent
             PREV_TAG=$(git tag --list "${NAME}-v*" --sort=-v:refname \
@@ -103,6 +105,7 @@ jobs:
 
             echo "::endgroup::"
           done
+          unset ENCODED_TOKEN PUSH_CMD
 
       # ── Publish to package registry ─────────────────────────────────
       # Uncomment ONE of the blocks below and configure the matching

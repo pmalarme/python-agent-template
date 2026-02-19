@@ -69,9 +69,12 @@ jobs:
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
 
-          # Push using explicit URL — token never stored in .git/config
+          # Push via Authorization header — token not embedded in URL, never written to .git/config
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
+          ENCODED_TOKEN=$(printf '%s' "x-access-token:${GH_TOKEN}" | base64 -w0)
+          git -c "http.extraHeader=Authorization: basic ${ENCODED_TOKEN}" \
+            push "https://${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
+          unset ENCODED_TOKEN
 
           # Generate release notes from merged PRs since previous monorepo tag
           PREV_TAG=$(git tag --list "v*" --sort=-v:refname \
