@@ -51,3 +51,6 @@ jobs:
 
       - name: Markdown code block lint
         run: uv run poe markdown-code-lint
+
+      - name: Monorepo release VERSION regex guard
+        run: bash .github/workflows/tests/test_monorepo_release_version_regex.sh
