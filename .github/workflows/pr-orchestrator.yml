@@ -57,4 +57,4 @@ jobs:
     uses: ./.github/workflows/security-review.lock.yml
     permissions:
       contents: read
-      pull-requests: read
+      pull-requests: write
