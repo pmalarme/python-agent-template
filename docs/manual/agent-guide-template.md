@@ -8,6 +8,19 @@ Use this as a blueprint when creating or maintaining any agent in this monorepo.
 - Namespace per project: `python_agent_template.agents.<agent>` with namespace packages (no `__init__.py` at the namespace roots) per PyPA guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/
 - Wheel-first images: build a wheel and install it in the runtime image for reproducibility and smaller layers.
 - Tasks via `uv run` + `poe` for consistent env management.
+- Secure-by-default posture: treat secrets as env/secret-store only, validate all inputs, avoid logging sensitive data, and block unsafe shell usage by default.
+
+## Secure helpers (copy/adapt per agent)
+- Validate inputs with simple guard clauses (e.g., reject blank/whitespace for required text fields) close to where data enters your agent.
+- Prefer these helpers in agent logic and CLI parsing so new contributors follow the safer path by default.
+
+## Secure-by-default checklist (include in each agent README/docs)
+- Secrets: load from environment/secret store only; never hardcode tokens/keys.
+- Input validation: validate CLI/user input with guard clauses; reject blank/whitespace and unexpected values early.
+- Logging/PII: avoid logging secrets or user-provided sensitive data; redact when unsure.
+- External calls/commands: favor library calls over shell; if shelling out, build argv lists (no `shell=True`).
+- Quality gate: run `uv run poe check` before pushing to catch format/lint/type/security/test issues.
+- Tests: include at least one validation test and one test that guards unsafe command construction so contributors see the expected patterns.
 
 ## Structure (replace `<agent>`)
 ```

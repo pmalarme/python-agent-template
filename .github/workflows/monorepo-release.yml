@@ -1,0 +1,103 @@
+name: monorepo-release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "pyproject.toml"
+      - "shared_tasks.toml"
+      - ".pre-commit-config.yaml"
+      - "scripts/**"
+      - ".github/**"
+      - "docs/source/**"
+      - "docs/manual/**"
+      - "DEVELOPMENT.md"
+      - "README.md"
+      - "CODING_STANDARDS.md"
+      - "CONTRIBUTING.md"
+      - "SECURITY.md"
+      - "CODE_OF_CONDUCT.md"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: tag and release monorepo
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Read monorepo version
+        id: version
+        run: |
+          VERSION=$(grep -m1 '^version' pyproject.toml \
+            | sed 's/version *= *"\(.*\)"/\1/')
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Monorepo version: ${VERSION}"
+
+      - name: Check if tag exists
+        id: check
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+            echo "::notice::Tag ${TAG} already exists — skipping release."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag and release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create annotated tag
+          git tag -a "$TAG" -m "Monorepo release v${VERSION}"
+
+          # Push via inline credential helper — GH_TOKEN used directly so it stays masked by GitHub Actions;
+          # token is never written to .git/config and never embedded in a URL.
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          git -c "credential.helper=!f() { printf 'username=x-access-token\npassword=%s\n' \"${GH_TOKEN}\"; }; f" \
+            push "https://${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
+
+          # Generate release notes from merged PRs since previous monorepo tag
+          PREV_TAG=$(git tag --list "v*" --sort=-v:refname \
+            | grep -v "^${TAG}$" | head -1 || true)
+
+          NOTES=""
+          if [ -n "$PREV_TAG" ]; then
+            # Extract PR numbers from commit messages
+            PR_NUMS=$(git log "${PREV_TAG}..${TAG}" --oneline \
+              | grep -oP '#\K\d+' | sort -un || true)
+
+            for NUM in $PR_NUMS; do
+              TITLE=$(gh pr view "$NUM" --json title --jq '.title' 2>/dev/null || true)
+              if [ -n "$TITLE" ]; then
+                NOTES="${NOTES}- ${TITLE} (#${NUM})"$'\n'
+              fi
+            done
+          fi
+
+          # Fallback if no PRs found
+          if [ -z "$NOTES" ]; then
+            NOTES="- Initial monorepo release v${VERSION}"
+          fi
+
+          gh release create "$TAG" \
+            --title "Monorepo v${VERSION}" \
+            --notes "## Template v${VERSION}"$'\n\n'"### Changes"$'\n\n'"${NOTES}"

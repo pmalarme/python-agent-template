@@ -147,7 +147,7 @@ convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = 'agents/**/tests'
-addopts = "-ra -q -r fEX"
+addopts = "-ra -q -r fEX --cov-fail-under=80"
 filterwarnings = []
 timeout = 120
 asyncio_mode = "auto"
@@ -210,6 +210,7 @@ mypy-agents = "python scripts/run_tasks_in_agents_if_exists.py mypy"
 mypy-root = "uv run mypy --config-file pyproject.toml"
 
 bandit = "uv run bandit -c pyproject.toml -r agents scripts docs/source"
+lock-verify = "uv lock --locked"
 
 test = "python scripts/run_tasks_in_agents_if_exists.py test"
 markdown-code-lint = "uv run python scripts/check_md_code_blocks.py README.md docs/manual/*.md agents/**/README.md .github/instructions/*.md"
@@ -217,15 +218,13 @@ pre-commit-install = "uv run pre-commit install --install-hooks --overwrite"
 install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --no-group=docs"
 docs = "uv run python scripts/generate_docs.py"
 docs-install = "uv sync --all-packages --all-extras --dev -U --prerelease=if-necessary-or-explicit --group docs"
-check = ["fmt", "lint", "pyright", "mypy", "bandit", "test", "markdown-code-lint"]
-# Optional release/publish helpers (commented out by default)
-# clean-dist-agents = "python scripts/run_tasks_in_agents_if_exists.py clean-dist"
-# clean-dist-meta = "rm -rf dist"
-# clean-dist = ["clean-dist-agents", "clean-dist-meta"]
-# build-agents = "python scripts/run_tasks_in_agents_if_exists.py build"
-# build-meta = "python -m flit build"
-# build = ["build-agents", "build-meta"]
-# publish = "uv publish"
+check = ["lock-verify", "fmt", "lint", "pyright", "mypy", "bandit", "test", "markdown-code-lint"]
+clean-dist = "rm -rf dist"
+build-all-agents = "python scripts/run_tasks_in_agents_if_exists.py build"
+build-changed-agents = "python scripts/run_tasks_in_changed_agents.py build"
+build = ["clean-dist", "build-all-agents"]
+build-changed = ["clean-dist", "build-changed-agents"]
+publish = "uv publish"
 
 # Setup and Virtual Environment
 [tool.poe.tasks.venv]
@@ -236,6 +235,7 @@ args = [{ name = "python", default = "3.13", options = ['-p', '--python'] }]
 sequence = [
     { ref = "venv --python $python"},
     { ref = "install" },
+    { ref = "docs-install" },
     { ref = "pre-commit-install" }
 ]
 args = [{ name = "python", default = "3.13", options = ['-p', '--python'] }]
@@ -258,11 +258,24 @@ sequence = [
 ]
 args = [{ name = "files", default = ".", positional = true, multiple = true }]
 
-[[tool.uv.index]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-publish-url = "https://test.pypi.org/legacy/"
-explicit = true
+# ── Package registry ──────────────────────────────────────────────────────────
+# GitHub Packages does NOT support a Python/pip registry.
+# Uncomment ONE of the blocks below and configure the matching
+# UV_PUBLISH_URL / UV_PUBLISH_TOKEN in .github/workflows/python-release.yml.
+#
+# Azure Artifacts (recommended for private packages):
+# [[tool.uv.index]]
+# name = "azure"
+# url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/simple/"
+# publish-url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/"
+# explicit = true
+#
+# PyPI (public packages):
+# [[tool.uv.index]]
+# name = "pypi"
+# url = "https://pypi.org/simple/"
+# publish-url = "https://upload.pypi.org/legacy/"
+# explicit = true
 
 [build-system]
 requires = ["flit-core>=3.12.0,<4"]

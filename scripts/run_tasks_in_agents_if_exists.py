@@ -35,6 +35,7 @@ Derived from https://github.com/microsoft/agent-framework/ (MIT license) and ada
 
 from __future__ import annotations
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -42,35 +43,42 @@ from poethepoet.app import PoeThePoet
 from rich import print
 from utils.task_utils import discover_projects, extract_poe_tasks
 
-MIN_ARGS = 2
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse CLI arguments for running Poe tasks across agents."""
+    parser = argparse.ArgumentParser(
+        description="Run a named Poe task in each agent that defines it.",
+    )
+    parser.add_argument("task", help="Poe task name to run (e.g. lint, test, build)")
+    parser.add_argument(
+        "extra",
+        nargs="*",
+        help="Extra arguments forwarded to the Poe task",
+    )
+    return parser.parse_args(argv)
 
 
 def main() -> None:
     """Run a requested Poe task in each agent that defines it.
 
-    If agent names are provided, only those under agents/ are considered; otherwise all workspace members.
-
-    Args:
-        None. Parses CLI args: ``task`` (required).
+    Parses CLI args via argparse: ``task`` (required) and optional extra
+    arguments forwarded to the underlying Poe task.
     """
+    args = _parse_args()
     pyproject_file = Path(__file__).resolve().parent.parent / "pyproject.toml"
     projects = discover_projects(pyproject_file)
 
-    if len(sys.argv) < MIN_ARGS:
-        print("Please provide a task name")
-        sys.exit(1)
-
-    task_name = sys.argv[1]
+    cli_args = [args.task, *args.extra]
     for project in projects:
         tasks = extract_poe_tasks(project / "pyproject.toml")
-        if task_name in tasks:
-            print(f"Running task {task_name} in {project}")
+        if args.task in tasks:
+            print(f"Running task {args.task} in {project}")
             app = PoeThePoet(cwd=project)
-            result = app(cli_args=sys.argv[1:])
+            result = app(cli_args=cli_args)
             if result:
                 sys.exit(result)
         else:
-            print(f"Task {task_name} not found in {project}")
+            print(f"Task {args.task} not found in {project}")
 
 
 if __name__ == "__main__":

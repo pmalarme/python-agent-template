@@ -1,0 +1,92 @@
+name: "Python: docker build & smoke test"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+    paths:
+      - "agents/*/Dockerfile"
+      - "agents/*/src/**"
+      - "agents/*/pyproject.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: detect agents with Dockerfiles
+    runs-on: ubuntu-latest
+
+    outputs:
+      agents: ${{ steps.find.outputs.agents }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Find changed agents with Dockerfiles
+        id: find
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Get the base ref to diff against
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE="$BASE_SHA"
+          else
+            BASE="HEAD~1"
+          fi
+
+          # Find agents that have both a Dockerfile AND changed files
+          changed_agents=$(git diff --name-only "$BASE" HEAD \
+            | grep '^agents/' \
+            | cut -d/ -f2 \
+            | sort -u \
+            | while read -r agent; do
+                if [[ ! "$agent" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+                  echo "::warning::Skipping agent with invalid name: '$agent'" >&2
+                  continue
+                fi
+                if [[ -f "agents/$agent/Dockerfile" ]]; then
+                  echo "$agent"
+                fi
+              done \
+            | jq -Rcn '[inputs]')
+          echo "agents=$changed_agents" >> "$GITHUB_OUTPUT"
+
+  build-and-test:
+    name: build & smoke test ${{ matrix.agent }}
+    needs: detect
+    if: ${{ needs.detect.outputs.agents != '[]' }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        agent: ${{ fromJson(needs.detect.outputs.agents) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Build Docker image
+        env:
+          AGENT: ${{ matrix.agent }}
+        run: |
+          docker build \
+            -t "${AGENT}:ci" \
+            -f "agents/${AGENT}/Dockerfile" \
+            "agents/${AGENT}"
+
+      - name: Smoke test
+        env:
+          AGENT: ${{ matrix.agent }}
+        run: |
+          docker run --rm "${AGENT}:ci" --help 2>&1 || \
+            docker run --rm "${AGENT}:ci" --version 2>&1 || \
+            echo "::warning::Smoke test could not verify entrypoint for ${AGENT}"

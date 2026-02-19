@@ -1,0 +1,53 @@
+name: "Setup Python environment"
+description: "Set up uv with Python and install project dependencies."
+
+inputs:
+  python-version:
+    description: "Python version to install (e.g. '3.13', '3.10')."
+    required: false
+    default: "3.13"
+  include-docs:
+    description: "Install the docs dependency group (sphinx, sphinx_autodoc_typehints, …)."
+    required: false
+    default: "false"
+  extra-args:
+    description: "Additional arguments appended to the `uv sync` command."
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Set up uv
+      uses: astral-sh/setup-uv@f0ec1fc3b38f5e7cd731bb6ce540c5af426746bb # v5.4.2
+      with:
+        python-version: ${{ inputs.python-version }}
+        enable-cache: true
+
+    - name: Install dependencies
+      shell: bash
+      env:
+        EXTRA_ARGS: ${{ inputs.extra-args }}
+        INCLUDE_DOCS: ${{ inputs.include-docs }}
+      run: |
+        args="--all-extras --dev"
+        if [[ "$INCLUDE_DOCS" == "true" ]]; then
+          args="$args --group docs"
+        fi
+        if [[ -n "$EXTRA_ARGS" ]]; then
+          # Validate each whitespace-split token: must start with '-' and contain only safe flag characters.
+          # NOTE: '--' (end-of-options marker) is intentionally allowed; positional args would fail validation.
+          for arg in $EXTRA_ARGS; do
+            # Denylist: block flags that could redirect dependency resolution to an attacker-controlled index.
+            if [[ "$arg" =~ ^--(index-url|extra-index-url|trusted-host|find-links)(=|$) ]]; then
+              echo "::error::Blocked dangerous extra-args token: '$arg'. Registry overrides are not permitted." >&2
+              exit 1
+            fi
+            if [[ ! "$arg" =~ ^-[a-zA-Z0-9=._:/@+-]+$ ]]; then
+              echo "::error::Unsafe extra-args token: '$arg'. Each token must start with '-' and contain only safe flag characters." >&2
+              exit 1
+            fi
+          done
+        fi
+        # shellcheck disable=SC2086  # intentional word-splitting for uv flags (all tokens validated above)
+        uv sync $args $EXTRA_ARGS

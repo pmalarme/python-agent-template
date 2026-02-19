@@ -1,0 +1,53 @@
+name: "Python: code quality"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+
+permissions:
+  contents: read
+
+jobs:
+  code-quality:
+    name: code quality (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+        with:
+          python-version: ${{ matrix.python-version }}
+          # Include docs group so Pyright can resolve sphinx_autodoc_typehints
+          # imports in docs/source/conf.py files.
+          include-docs: "true"
+
+      - name: Lock file check
+        run: uv run poe lock-verify
+
+      - name: Format check
+        run: uv run poe fmt
+
+      - name: Lint
+        run: uv run poe lint
+
+      - name: Pyright
+        run: uv run poe pyright
+
+      - name: MyPy
+        run: uv run poe mypy
+
+      - name: Bandit security scan
+        run: uv run poe bandit
+
+      - name: Markdown code block lint
+        run: uv run poe markdown-code-lint

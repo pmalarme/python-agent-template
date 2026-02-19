@@ -3,12 +3,13 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # Python < 3.11
+else:
     try:
         import tomli as tomllib  # type: ignore[import-not-found]
     except ModuleNotFoundError:
@@ -24,8 +25,8 @@ def _find_upwards(start: Path, marker: str = "pyproject.toml") -> Path:
             return parent
     logger.debug("%s not found starting at %s", marker, start)
     err = FileNotFoundError(marker)
-    if hasattr(err, "add_note"):
-        err.add_note(f"search start: {start}")
+    if hasattr(err, "add_note"):  # Python >= 3.11
+        err.add_note(f"search start: {start}")  # pyright: ignore[reportUnknownMemberType,reportAttributeAccessIssue]
     raise err
 
 
@@ -47,7 +48,7 @@ def _get_project_version(default: str = "0.0.0") -> str:
 
     try:
         with pyproject_path.open("rb") as f:
-            data = tomllib.load(f)
+            data: dict[str, Any] = tomllib.load(f)
     except OSError as exc:
         logger.warning("Failed to read %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
@@ -55,7 +56,9 @@ def _get_project_version(default: str = "0.0.0") -> str:
         logger.warning("Failed to parse %s; falling back to default version.", pyproject_path, exc_info=exc)
         return default
 
-    version = data.get("project", {}).get("version") or data.get("tool", {}).get("poetry", {}).get("version")
+    version: str = (
+        data.get("project", {}).get("version") or data.get("tool", {}).get("poetry", {}).get("version") or default
+    )
     return version or default
 
 

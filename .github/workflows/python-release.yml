@@ -1,0 +1,146 @@
+name: "Python: release"
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "agents/*/pyproject.toml"
+      - "agents/*/src/**"
+
+permissions:
+  contents: write          # create tags, releases, and upload assets
+
+jobs:
+  release:
+    name: build and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Python environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Build changed agent packages
+        run: uv run poe build-changed
+
+      - name: Tag and release built wheels
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          shopt -s nullglob
+          WHEELS=(dist/*.whl)
+
+          if [ ${#WHEELS[@]} -eq 0 ]; then
+            echo "::notice::No wheels in dist/ — nothing to release."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Authenticate via inline credential helper — GH_TOKEN used directly so it stays masked by GitHub Actions;
+          # token is never written to .git/config and never embedded in a URL.
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          PUSH_URL="https://${REMOTE_HOST}/${GH_REPOSITORY}.git"
+
+          for WHL in "${WHEELS[@]}"; do
+            # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
+            BASENAME=$(basename "$WHL")
+            NOEXT=${BASENAME%.whl}
+            # Strip platform, abi, and python tags from the right to get "name-version"
+            REST=${NOEXT%-*}   # drop platform
+            REST=${REST%-*}    # drop abi
+            REST=${REST%-*}    # drop python
+            VERSION=${REST##*-}
+            NAME=${REST%-*}
+            TAG="${NAME}-v${VERSION}"
+
+            # Validate NAME and VERSION to prevent unexpected values from flowing into git commands
+            if [[ ! "$NAME" =~ ^[a-zA-Z0-9_-]+$ ]] || [[ ! "$VERSION" =~ ^[0-9a-zA-Z._-]+$ ]]; then
+              echo "::error::Unexpected wheel name/version format in '${BASENAME}' — skipping." >&2
+              continue
+            fi
+
+            # Skip if tag already exists
+            if git rev-parse "refs/tags/${TAG}" >/dev/null 2>&1; then
+              echo "::notice::Tag ${TAG} already exists — skipping."
+              continue
+            fi
+
+            echo "::group::Releasing ${TAG}"
+
+            # Create annotated tag
+            git tag -a "$TAG" -m "Release ${NAME} v${VERSION}"
+            git -c "credential.helper=!f() { printf 'username=x-access-token\npassword=%s\n' \"${GH_TOKEN}\"; }; f" \
+              push "$PUSH_URL" "$TAG"
+
+            # Generate changelog from merged PRs since previous tag for this agent
+            PREV_TAG=$(git tag --list "${NAME}-v*" --sort=-v:refname \
+              | grep -v "^${TAG}$" | head -1 || true)
+
+            NOTES=""
+            if [ -n "$PREV_TAG" ]; then
+              # Extract PR numbers from commit messages (covers squash and merge commits)
+              PR_NUMS=$(git log "${PREV_TAG}..${TAG}" --oneline -- "agents/${NAME}/" \
+                | grep -oP '#\K\d+' | sort -un || true)
+
+              for NUM in $PR_NUMS; do
+                TITLE=$(gh pr view "$NUM" --json title --jq '.title' 2>/dev/null || true)
+                if [ -n "$TITLE" ]; then
+                  NOTES="${NOTES}- ${TITLE} (#${NUM})"$'\n'
+                fi
+              done
+            fi
+
+            # Fallback if no PRs found
+            if [ -z "$NOTES" ]; then
+              NOTES="- Initial release of ${NAME} ${VERSION}"
+            fi
+
+            # Create GitHub release with wheel + sdist attached
+            ASSETS=("$WHL")
+            SDIST="dist/${NAME}-${VERSION}.tar.gz"
+            [ -f "$SDIST" ] && ASSETS+=("$SDIST")
+
+            gh release create "$TAG" "${ASSETS[@]}" \
+              --title "${NAME} v${VERSION}" \
+              --notes "## ${NAME} v${VERSION}"$'\n\n'"### Changes"$'\n\n'"${NOTES}"
+
+            echo "::endgroup::"
+          done
+
+      # ── Publish to package registry ─────────────────────────────────
+      # Uncomment ONE of the blocks below and configure the matching
+      # secret in your repository settings.
+      # Also uncomment the corresponding [[tool.uv.index]] block in
+      # pyproject.toml so that `uv publish` knows the target URL.
+      #
+      # Azure Artifacts (recommended for private packages):
+      #   1. Create a feed: https://learn.microsoft.com/azure/devops/artifacts/quickstarts/python-packages
+      #   2. Generate a PAT with Packaging > Read & Write scope.
+      #   3. Add the PAT as a repository secret named AZURE_ARTIFACTS_TOKEN.
+      #   4. Uncomment the block below and the [[tool.uv.index]] in pyproject.toml.
+      #
+      # - name: Publish to Azure Artifacts
+      #   env:
+      #     UV_PUBLISH_URL: https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/
+      #     UV_PUBLISH_TOKEN: ${{ secrets.AZURE_ARTIFACTS_TOKEN }}
+      #   run: uv publish
+      #
+      # PyPI (public packages):
+      #   1. Create an API token: https://pypi.org/manage/account/token/
+      #   2. Add it as a repository secret named PYPI_TOKEN.
+      #   3. Uncomment the block below and the [[tool.uv.index]] in pyproject.toml.
+      #
+      # - name: Publish to PyPI
+      #   env:
+      #     UV_PUBLISH_URL: https://upload.pypi.org/legacy/
+      #     UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+      #   run: uv publish
