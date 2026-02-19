@@ -64,12 +64,13 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${{ github.repository }}.git"
 
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
-          git push origin "$TAG"
+
+          # Push using explicit URL — token never stored in .git/config
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${{ github.repository }}.git" "$TAG"
 
           # Generate release notes from merged PRs since previous monorepo tag
           PREV_TAG=$(git tag --list "v*" --sort=-v:refname \
