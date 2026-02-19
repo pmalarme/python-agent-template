@@ -200,12 +200,13 @@ To set up the development environment, run:
 uv run poe setup
 ```
 
-This task creates or refreshes the virtual environment in `.venv/`, installs all dependencies, and sets up pre-commit hooks. You can specify a Python version with the `--python` flag.
+This task creates or refreshes the virtual environment in `.venv/`, installs all dependencies (including the docs group), and sets up pre-commit hooks. You can specify a Python version with the `--python` flag.
 
 It is a sequence of the following Poe tasks:
 
 - [venv](#venv)
 - [install](#install)
+- [docs-install](#docs-install)
 - [pre-commit-install](#pre-commit-install)
 
 ##### venv

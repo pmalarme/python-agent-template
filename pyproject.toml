@@ -235,6 +235,7 @@ args = [{ name = "python", default = "3.13", options = ['-p', '--python'] }]
 sequence = [
     { ref = "venv --python $python"},
     { ref = "install" },
+    { ref = "docs-install" },
     { ref = "pre-commit-install" }
 ]
 args = [{ name = "python", default = "3.13", options = ['-p', '--python'] }]
