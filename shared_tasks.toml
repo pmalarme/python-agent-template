@@ -19,5 +19,5 @@ test = "uv run pytest --cov-report=term-missing:skip-covered"
 # repo/agent check bundle; when run with -C agents/<name>, scopes to that agent
 check = ["fmt", "lint", "pyright", "mypy", "bandit", "test"]
 
-build-package = "uv build"
+build-package = "uv build --out-dir ../../dist"
 build = ["build-package"]
