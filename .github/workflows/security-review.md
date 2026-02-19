@@ -29,9 +29,9 @@ safe-outputs:
     max: 1
     footer: false
   add-reviewer:
-    reviewers: [copilot]
+    reviewers: [copilot, pmalarme]
     max: 3
-    target: "*"
+    target: "triggering"
 ---
 
 # Security Review

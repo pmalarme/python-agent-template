@@ -23,7 +23,7 @@
 #
 # Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings, then requests Copilot code review.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"29e30b139a9ea75a3673563b40c05fe5c7c0067bbeae803d3e6f80fdb4dfb632","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"9669e244ad67e528b5a95c9a4861067e08835ef832d4c805c7192c070d7fff36","compiler_version":"v0.46.3"}
 
 name: "Security Review"
 "on":
@@ -389,7 +389,7 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"add_reviewer":{"max":3,"reviewers":["copilot"]},"create_pull_request_review_comment":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
+          {"add_reviewer":{"max":3,"reviewers":["copilot","pmalarme"]},"create_pull_request_review_comment":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
@@ -1188,7 +1188,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_reviewer\":{\"allowed\":[\"copilot\"],\"max\":3,\"target\":\"*\"},\"create_pull_request_review_comment\":{\"max\":20,\"side\":\"RIGHT\",\"target\":\"triggering\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"footer\":\"none\",\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_reviewer\":{\"allowed\":[\"copilot\",\"pmalarme\"],\"max\":3,\"target\":\"triggering\"},\"create_pull_request_review_comment\":{\"max\":20,\"side\":\"RIGHT\",\"target\":\"triggering\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"footer\":\"none\",\"max\":1}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
