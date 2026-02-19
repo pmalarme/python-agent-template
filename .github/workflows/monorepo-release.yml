@@ -64,7 +64,8 @@ jobs:
 
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${{ github.repository }}.git"
 
           # Create annotated tag
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
