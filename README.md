@@ -118,7 +118,7 @@ uv run poe setup
 uv run poe check
 ```
 
-`poe setup` creates `.venv/`, installs all dev dependencies, and installs pre-commit hooks. `poe check` runs the full quality gate (format, lint, type checks, security, tests, markdown lint) across the entire workspace.
+`poe setup` creates `.venv/`, installs all dev dependencies (including the docs group), and installs pre-commit hooks. `poe check` runs the full quality gate (format, lint, type checks, security, tests, markdown lint) across the entire workspace.
 
 ---
 
@@ -368,7 +368,7 @@ flowchart TD
 
 | Task | What it does |
 | --- | --- |
-| `poe setup` | Create `.venv/`, install deps, install pre-commit hooks |
+| `poe setup` | Create `.venv/`, install deps (including docs group), install pre-commit hooks |
 | `poe venv` | Create/refresh `.venv/` (default Python 3.13, override with `-p`) |
 | `poe install` | `uv sync --all-extras --dev` (docs group excluded) |
 | `poe pre-commit-install` | Install pre-commit hooks into `.git/hooks` |
