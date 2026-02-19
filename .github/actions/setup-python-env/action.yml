@@ -38,6 +38,11 @@ runs:
           # Validate each whitespace-split token: must start with '-' and contain only safe flag characters.
           # NOTE: '--' (end-of-options marker) is intentionally allowed; positional args would fail validation.
           for arg in $EXTRA_ARGS; do
+            # Denylist: block flags that could redirect dependency resolution to an attacker-controlled index.
+            if [[ "$arg" =~ ^--(index-url|extra-index-url|trusted-host|find-links)(=|$) ]]; then
+              echo "::error::Blocked dangerous extra-args token: '$arg'. Registry overrides are not permitted." >&2
+              exit 1
+            fi
             if [[ ! "$arg" =~ ^-[a-zA-Z0-9=._:/@+-]+$ ]]; then
               echo "::error::Unsafe extra-args token: '$arg'. Each token must start with '-' and contain only safe flag characters." >&2
               exit 1
