@@ -68,11 +68,15 @@ jobs:
           persist-credentials: false
 
       - name: Build Docker image
+        env:
+          AGENT: ${{ matrix.agent }}
         run: |
           docker build \
-            -t "${{ matrix.agent }}:ci" \
-            -f "agents/${{ matrix.agent }}/Dockerfile" \
-            "agents/${{ matrix.agent }}"
+            -t "${AGENT}:ci" \
+            -f "agents/${AGENT}/Dockerfile" \
+            "agents/${AGENT}"
 
       - name: Smoke test
-        run: docker run --rm "${{ matrix.agent }}:ci" --help || true
+        env:
+          AGENT: ${{ matrix.agent }}
+        run: docker run --rm "${AGENT}:ci" --help || true
