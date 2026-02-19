@@ -1,0 +1,62 @@
+name: "PR: orchestrator"
+
+on:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+
+permissions:
+  contents: read
+  actions: read
+  pull-requests: read
+  security-events: write
+
+jobs:
+  # ── Stage 1: Code Quality ────────────────────────────────────────────
+  code-quality:
+    name: code quality
+    uses: ./.github/workflows/python-code-quality.yml
+    permissions:
+      contents: read
+
+  # ── Stage 2: Tests + Build Validation (parallel, after quality) ─────
+  tests:
+    name: tests
+    needs: code-quality
+    uses: ./.github/workflows/python-tests.yml
+    permissions:
+      contents: read
+
+  package-build:
+    name: package build
+    needs: code-quality
+    uses: ./.github/workflows/python-package-build.yml
+    permissions:
+      contents: read
+
+  docker-build:
+    name: docker build
+    needs: code-quality
+    uses: ./.github/workflows/python-docker-build.yml
+    permissions:
+      contents: read
+
+  # ── Stage 3: CodeQL (after tests + builds pass) ─────────────────────
+  codeql:
+    name: codeql
+    needs: [tests, package-build, docker-build]
+    uses: ./.github/workflows/codeql-analysis.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  # ── Stage 4: Security Review (after CodeQL) ─────────────────────────
+  security-review:
+    name: security review
+    needs: codeql
+    uses: ./.github/workflows/security-review.lock.yml
+    permissions:
+      contents: read
+      pull-requests: read
+    with:
+      pr_number: ${{ github.event.pull_request.number }}

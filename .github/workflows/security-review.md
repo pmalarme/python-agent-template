@@ -1,11 +1,9 @@
 ---
 description: Automated security review for pull requests. Analyzes changed files against
-  15 security posture categories and posts inline review comments on findings,
-  then requests Copilot code review.
+  15 security posture categories and posts inline review comments on findings.
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  workflow_call:
 
 permissions:
   contents: read
@@ -16,7 +14,12 @@ engine:
   agent: security-reviewer
 
 tools:
-  cache-memory: true
+  cache-memory:
+    - id: pull-request-review-context
+      key: "security-review-pr-${{ github.event.pull_request.number }}"
+    - id: review patterns
+      key: "security-review-patterns"
+      retention-days: 30
   github:
     toolsets: [repos, pull_requests]
 
@@ -27,11 +30,6 @@ safe-outputs:
   submit-pull-request-review:
     max: 1
     footer: false
-  add-reviewer:
-    reviewers: [copilot]
-    max: 3
-    target: "triggering"
-    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
 ---
 
 # Security Review
@@ -45,11 +43,10 @@ agent instructions.
 1. **Access memory first.** Use cache memory at
    `/tmp/gh-aw/cache-memory/` to:
    - Check prior review context for this PR at
-     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
+     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`. This correspond to the cache memory tool with id `pull-request-review-context` and can contain information about previous review findings, categories, files reviewed, and timestamps for this PR.
    - Identify recurring security patterns in this repository from
-     `/tmp/gh-aw/cache-memory/security-review-patterns.json`
-   - Avoid repeating the same inline comments from previous reviews unless the
-     issue remains unresolved in newly changed lines
+     `/tmp/gh-aw/cache-memory/security-review-patterns.json`. This correspond to the cache memory tool with id `review-patterns` and can contain information about recurring security issues and patterns in the repository.
+   - Avoid repeating the same inline comments from previous reviews if the previous comment is not resolved yet nor outdated (e.g., if the same issue is still present in the code or if the code has not changed since the last review).
 
 2. **Fetch the pull request diff.** Read the pull request details and all
    changed files for PR #${{ github.event.pull_request.number }}.
@@ -69,21 +66,31 @@ agent instructions.
 5. **Submit the review.** After posting all inline comments:
    - If you found any **critical** or **high** severity issues, submit the
      review with `REQUEST_CHANGES` and a summary body listing the top findings.
-   - If you found only **medium** or **low** issues, submit with `COMMENT` and
-     a brief summary.
-   - If no issues were found, submit with `COMMENT` and a body stating the
+   - If you found only **medium** or **low** issues, submit with `APPROVE` and
+     a brief summary noting the medium/low findings. These are not blocking.
+   - If no issues were found, submit with `APPROVE` and a body stating the
      changes look secure.
+   - **Supersede previous review if resolved.** Check the cache memory for
+     this PR to see if a previous security review submitted
+     `REQUEST_CHANGES`. If it did, compare the previous findings against the
+     current diff. If the previously flagged issues have been fixed and no
+     new critical/high issues are found, submit the new review as `APPROVE`
+     with a detailed body that includes:
+     - A summary stating the previous issues have been resolved.
+     - A list of the previously flagged findings and how each was addressed
+       (e.g., "**Input Validation** (high): User input is now sanitized in
+       `validators.py` — resolved.").
+     - Any remaining medium/low findings from the current review, if any.
+     - This replaces the old `REQUEST_CHANGES` review and unblocks the PR.
 
 6. **Update memory.** After submitting the review:
    - Write/update PR-specific memory at
      `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
      including review timestamp, findings summary, categories found, and files
-     reviewed
+     reviewed. The id of the cache memory tool for this is `pull-request-review-context`.
    - Update shared pattern memory at
      `/tmp/gh-aw/cache-memory/security-review-patterns.json` with recurring
-     issue themes and counts
-
-7. **Request Copilot review.** After submitting the security review, add Copilot as a reviewer on the pull request for an additional code quality review.
+     issue themes and counts. The id of the cache memory tool for this is `review-patterns`.
 
 ## Review Guidelines
 

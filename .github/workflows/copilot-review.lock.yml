@@ -21,20 +21,23 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings.
+# Adds Copilot as a reviewer on a pull request after the security review agent approves it. Triggered when any review is submitted; only acts when the review is an approval from the security reviewer.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"bee08f1c7f9ba74b7900257d5c00f796abd591c727efef7457b83fefabf6c144","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"dfaf0658c2e150cf04605979aab0d8c0565c077861dfe5118f012afa69870313","compiler_version":"v0.46.3"}
 
-name: "Security Review"
+name: "Add Copilot Reviewer After Security Approval"
 "on":
-  workflow_call:
+  pull_request_review:
+    types:
+    - submitted
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
-run-name: "Security Review"
+run-name: "Add Copilot Reviewer After Security Approval"
 
 jobs:
   activation:
@@ -44,8 +47,11 @@ jobs:
     permissions:
       contents: read
     outputs:
+      body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
       comment_repo: ""
+      text: ${{ steps.sanitized.outputs.text }}
+      title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
@@ -70,12 +76,21 @@ jobs:
       - name: Check workflow file timestamps
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          GH_AW_WORKFLOW_FILE: "security-review.lock.yml"
+          GH_AW_WORKFLOW_FILE: "copilot-review.lock.yml"
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Compute current body text
+        id: sanitized
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -86,9 +101,11 @@ jobs:
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_REVIEW_ID: ${{ github.event.review.id }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
         run: |
           bash /opt/gh-aw/actions/create_prompt_first.sh
           cat << 'GH_AW_PROMPT_EOF' > "$GH_AW_PROMPT"
@@ -97,7 +114,6 @@ jobs:
           cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
-          cat "/opt/gh-aw/prompts/cache_memory_prompt_multi.md" >> "$GH_AW_PROMPT"
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -156,17 +172,21 @@ jobs:
           </github-context>
 
           GH_AW_PROMPT_EOF
+          if [ "$GITHUB_EVENT_NAME" = "issue_comment" ] && [ -n "$GH_AW_IS_PR_COMMENT" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review_comment" ] || [ "$GITHUB_EVENT_NAME" = "pull_request_review" ]; then
+            cat "/opt/gh-aw/prompts/pr_context_prompt.md" >> "$GH_AW_PROMPT"
+          fi
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           </system>
           GH_AW_PROMPT_EOF
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
-          {{#runtime-import .github/workflows/security-review.md}}
+          {{#runtime-import .github/workflows/copilot-review.md}}
           GH_AW_PROMPT_EOF
       - name: Interpolate variables and render templates
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_REVIEW_ID: ${{ github.event.review.id }}
         with:
           script: |
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
@@ -177,31 +197,16 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
-          GH_AW_ALLOWED_EXTENSIONS: ''
-          GH_AW_CACHE_EXAMPLES: '- `/tmp/gh-aw/cache-memory-pull-request-review-context/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/state/` - organized state files in subdirectories (with allowed file types)
-- `/tmp/gh-aw/cache-memory-review patterns/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-review patterns/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-review patterns/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-review patterns/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-review patterns/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-review patterns/state/` - organized state files in subdirectories (with allowed file types)
-'
-          GH_AW_CACHE_LIST: '- **pull-request-review-context**: `/tmp/gh-aw/cache-memory-pull-request-review-context/`
-- **review patterns**: `/tmp/gh-aw/cache-memory-review patterns/`
-'
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
           GH_AW_GITHUB_EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
           GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          GH_AW_GITHUB_EVENT_REVIEW_ID: ${{ github.event.review.id }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_IS_PR_COMMENT: ${{ github.event.issue.pull_request && 'true' || '' }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: ${{ needs.pre_activation.outputs.matched_command }}
         with:
@@ -215,17 +220,16 @@ jobs:
             return await substitutePlaceholders({
               file: process.env.GH_AW_PROMPT,
               substitutions: {
-                GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
-                GH_AW_CACHE_EXAMPLES: process.env.GH_AW_CACHE_EXAMPLES,
-                GH_AW_CACHE_LIST: process.env.GH_AW_CACHE_LIST,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
                 GH_AW_GITHUB_EVENT_ISSUE_NUMBER: process.env.GH_AW_GITHUB_EVENT_ISSUE_NUMBER,
                 GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER: process.env.GH_AW_GITHUB_EVENT_PULL_REQUEST_NUMBER,
+                GH_AW_GITHUB_EVENT_REVIEW_ID: process.env.GH_AW_GITHUB_EVENT_REVIEW_ID,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
+                GH_AW_IS_PR_COMMENT: process.env.GH_AW_IS_PR_COMMENT,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
                 GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_MATCHED_COMMAND
               }
@@ -252,8 +256,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     env:
       DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
       GH_AW_ASSETS_ALLOWED_EXTS: ""
@@ -263,7 +265,7 @@ jobs:
       GH_AW_SAFE_OUTPUTS: /opt/gh-aw/safeoutputs/outputs.jsonl
       GH_AW_SAFE_OUTPUTS_CONFIG_PATH: /opt/gh-aw/safeoutputs/config.json
       GH_AW_SAFE_OUTPUTS_TOOLS_PATH: /opt/gh-aw/safeoutputs/tools.json
-      GH_AW_WORKFLOW_ID_SANITIZED: securityreview
+      GH_AW_WORKFLOW_ID_SANITIZED: copilotreview
     outputs:
       checkout_pr_success: ${{ steps.checkout-pr.outputs.checkout_pr_success || 'true' }}
       has_patch: ${{ steps.collect_output.outputs.has_patch }}
@@ -282,27 +284,6 @@ jobs:
           persist-credentials: false
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
-      # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory (pull-request-review-context)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Restore cache-memory file share data (pull-request-review-context)
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-          restore-keys: |
-            security-review-pr-${{ github.event.pull_request.number }}-
-      - name: Create cache-memory directory (review patterns)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory-review patterns
-      - name: Restore cache-memory file share data (review patterns)
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-patterns-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-review patterns
-          restore-keys: |
-            security-review-patterns-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -342,7 +323,7 @@ jobs:
               version: "",
               agent_version: "0.0.411",
               cli_version: "v0.46.3",
-              workflow_name: "Security Review",
+              workflow_name: "Add Copilot Reviewer After Security Approval",
               experimental: false,
               supports_tools_allowlist: true,
               run_id: context.runId,
@@ -399,77 +380,36 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           cat > /opt/gh-aw/safeoutputs/config.json << 'GH_AW_SAFE_OUTPUTS_CONFIG_EOF'
-          {"create_pull_request_review_comment":{"max":20},"missing_data":{},"missing_tool":{},"noop":{"max":1},"submit_pull_request_review":{"max":1}}
+          {"add_reviewer":{"max":1,"reviewers":["copilot"]},"missing_data":{},"missing_tool":{},"noop":{"max":1}}
           GH_AW_SAFE_OUTPUTS_CONFIG_EOF
           cat > /opt/gh-aw/safeoutputs/tools.json << 'GH_AW_SAFE_OUTPUTS_TOOLS_EOF'
           [
             {
-              "description": "Create a review comment on a specific line of code in a pull request. Use this for inline code review feedback, suggestions, or questions about specific code changes. For general PR comments not tied to specific lines, use add_comment instead. CONSTRAINTS: Maximum 20 review comment(s) can be created. Comments will be on the RIGHT side of the diff.",
+              "description": "Add reviewers to a GitHub pull request. Reviewers receive notifications and can approve or request changes. Use 'copilot' as a reviewer name to request the Copilot PR review bot. CONSTRAINTS: Maximum 1 reviewer(s) can be added.",
               "inputSchema": {
                 "additionalProperties": false,
                 "properties": {
-                  "body": {
-                    "description": "Review comment content in Markdown. Provide specific, actionable feedback about the code at this location.",
-                    "type": "string"
-                  },
-                  "line": {
-                    "description": "Line number for the comment. For single-line comments, this is the target line. For multi-line comments, this is the ending line.",
+                  "pull_request_number": {
+                    "description": "Pull request number to add reviewers to. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, adds reviewers to the PR that triggered this workflow.",
                     "type": [
                       "number",
                       "string"
                     ]
                   },
-                  "path": {
-                    "description": "File path relative to the repository root (e.g., 'src/auth/login.js'). Must be a file that was changed in the PR.",
-                    "type": "string"
-                  },
-                  "side": {
-                    "description": "Side of the diff to comment on: RIGHT for the new version (additions), LEFT for the old version (deletions). Defaults to RIGHT.",
-                    "enum": [
-                      "LEFT",
-                      "RIGHT"
-                    ],
-                    "type": "string"
-                  },
-                  "start_line": {
-                    "description": "Starting line number for multi-line comments. When set, the comment spans from start_line to line. Omit for single-line comments.",
-                    "type": [
-                      "number",
-                      "string"
-                    ]
+                  "reviewers": {
+                    "description": "GitHub usernames to add as reviewers (e.g., ['octocat', 'copilot']). Users must have access to the repository.",
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
                   }
                 },
                 "required": [
-                  "path",
-                  "line",
-                  "body"
+                  "reviewers"
                 ],
                 "type": "object"
               },
-              "name": "create_pull_request_review_comment"
-            },
-            {
-              "description": "Submit a pull request review with a status decision. All create_pull_request_review_comment outputs are automatically collected and included as inline comments in this review. Use APPROVE to approve the PR, REQUEST_CHANGES to request changes, or COMMENT for general feedback without a decision. If you don't call this tool, review comments are still submitted as a COMMENT review. CONSTRAINTS: Maximum 1 review(s) can be submitted.",
-              "inputSchema": {
-                "additionalProperties": false,
-                "properties": {
-                  "body": {
-                    "description": "Overall review summary in Markdown. Provide a high-level assessment of the changes. Required for REQUEST_CHANGES; optional for APPROVE and COMMENT.",
-                    "type": "string"
-                  },
-                  "event": {
-                    "description": "Review decision: APPROVE to approve the pull request, REQUEST_CHANGES to formally request changes before merging, or COMMENT for general feedback without a formal decision. Defaults to COMMENT when omitted.",
-                    "enum": [
-                      "APPROVE",
-                      "REQUEST_CHANGES",
-                      "COMMENT"
-                    ],
-                    "type": "string"
-                  }
-                },
-                "type": "object"
-              },
-              "name": "submit_pull_request_review"
+              "name": "add_reviewer"
             },
             {
               "description": "Report that a tool or capability needed to complete the task is not available, or share any information you deem important about missing functionality or limitations. Use this when you cannot accomplish what was requested because the required functionality is missing or access is restricted.",
@@ -544,35 +484,20 @@ jobs:
           GH_AW_SAFE_OUTPUTS_TOOLS_EOF
           cat > /opt/gh-aw/safeoutputs/validation.json << 'GH_AW_SAFE_OUTPUTS_VALIDATION_EOF'
           {
-            "create_pull_request_review_comment": {
-              "defaultMax": 1,
+            "add_reviewer": {
+              "defaultMax": 3,
               "fields": {
-                "body": {
+                "pull_request_number": {
+                  "issueOrPRNumber": true
+                },
+                "reviewers": {
                   "required": true,
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "line": {
-                  "required": true,
-                  "positiveInteger": true
-                },
-                "path": {
-                  "required": true,
-                  "type": "string"
-                },
-                "side": {
-                  "type": "string",
-                  "enum": [
-                    "LEFT",
-                    "RIGHT"
-                  ]
-                },
-                "start_line": {
-                  "optionalPositiveInteger": true
+                  "type": "array",
+                  "itemType": "string",
+                  "itemSanitize": true,
+                  "itemMaxLength": 39
                 }
-              },
-              "customValidation": "startLineLessOrEqualLine"
+              }
             },
             "missing_tool": {
               "defaultMax": 20,
@@ -603,24 +528,6 @@ jobs:
                   "type": "string",
                   "sanitize": true,
                   "maxLength": 65000
-                }
-              }
-            },
-            "submit_pull_request_review": {
-              "defaultMax": 1,
-              "fields": {
-                "body": {
-                  "type": "string",
-                  "sanitize": true,
-                  "maxLength": 65000
-                },
-                "event": {
-                  "type": "string",
-                  "enum": [
-                    "APPROVE",
-                    "REQUEST_CHANGES",
-                    "COMMENT"
-                  ]
                 }
               }
             }
@@ -739,7 +646,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent security-reviewer --allow-all-tools --add-dir /tmp/gh-aw/cache-memory-pull-request-review-context/ --add-dir '\''/tmp/gh-aw/cache-memory-review patterns/'\'' --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --allow-all-tools --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -876,19 +783,6 @@ jobs:
           else
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
-      - name: Upload cache-memory data as artifact (pull-request-review-context)
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        if: always()
-        with:
-          name: cache-memory-pull-request-review-context
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Upload cache-memory data as artifact (review patterns)
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        if: always()
-        with:
-          name: cache-memory-review patterns
-          path: /tmp/gh-aw/cache-memory-review patterns
-          retention-days: 30
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -910,7 +804,6 @@ jobs:
       - agent
       - detection
       - safe_outputs
-      - update_cache_memory
     if: (always()) && (needs.agent.result != 'skipped')
     runs-on: ubuntu-slim
     permissions:
@@ -942,7 +835,7 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: 1
-          GH_AW_WORKFLOW_NAME: "Security Review"
+          GH_AW_WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -955,7 +848,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Security Review"
+          GH_AW_WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -968,10 +861,10 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Security Review"
+          GH_AW_WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_ID: "security-review"
+          GH_AW_WORKFLOW_ID: "copilot-review"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.agent.outputs.secret_verification_result }}
           GH_AW_CHECKOUT_PR_SUCCESS: ${{ needs.agent.outputs.checkout_pr_success }}
           GH_AW_GROUP_REPORTS: "false"
@@ -987,7 +880,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "Security Review"
+          GH_AW_WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_MESSAGE: ${{ steps.noop.outputs.noop_message }}
@@ -1005,8 +898,6 @@ jobs:
     if: needs.agent.outputs.output_types != '' || needs.agent.outputs.has_patch == 'true'
     runs-on: ubuntu-latest
     permissions: {}
-    concurrency:
-      group: "gh-aw-copilot-${{ github.workflow }}"
     timeout-minutes: 10
     outputs:
       success: ${{ steps.parse_results.outputs.success }}
@@ -1035,8 +926,8 @@ jobs:
       - name: Setup threat detection
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
-          WORKFLOW_NAME: "Security Review"
-          WORKFLOW_DESCRIPTION: "Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings."
+          WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
+          WORKFLOW_DESCRIPTION: "Adds Copilot as a reviewer on a pull request after the security review agent approves it. Triggered when any review is submitted; only acts when the review is an approval from the security reviewer."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
         with:
           script: |
@@ -1135,9 +1026,10 @@ jobs:
     timeout-minutes: 15
     env:
       GH_AW_ENGINE_ID: "copilot"
-      GH_AW_WORKFLOW_ID: "security-review"
-      GH_AW_WORKFLOW_NAME: "Security Review"
+      GH_AW_WORKFLOW_ID: "copilot-review"
+      GH_AW_WORKFLOW_NAME: "Add Copilot Reviewer After Security Approval"
     outputs:
+      add_reviewer_reviewers_added: ${{ steps.process_safe_outputs.outputs.reviewers_added }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
@@ -1163,7 +1055,7 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           GH_AW_AGENT_OUTPUT: ${{ env.GH_AW_AGENT_OUTPUT }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request_review_comment\":{\"max\":20,\"side\":\"RIGHT\",\"target\":\"triggering\"},\"missing_data\":{},\"missing_tool\":{},\"submit_pull_request_review\":{\"footer\":\"none\",\"max\":1}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"add_reviewer\":{\"allowed\":[\"copilot\"],\"max\":1,\"target\":\"triggering\"},\"missing_data\":{},\"missing_tool\":{}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1171,38 +1063,3 @@ jobs:
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/safe_output_handler_manager.cjs');
             await main();
-
-  update_cache_memory:
-    needs:
-      - agent
-      - detection
-    if: always() && needs.detection.outputs.success == 'true'
-    runs-on: ubuntu-latest
-    permissions: {}
-    steps:
-      - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
-        with:
-          destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (pull-request-review-context)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        continue-on-error: true
-        with:
-          name: cache-memory-pull-request-review-context
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Save cache-memory to cache (pull-request-review-context)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Download cache-memory artifact (review patterns)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        continue-on-error: true
-        with:
-          name: cache-memory-review patterns
-          path: /tmp/gh-aw/cache-memory-review patterns
-      - name: Save cache-memory to cache (review patterns)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-patterns-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-review patterns

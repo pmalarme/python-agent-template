@@ -51,6 +51,8 @@ flowchart TB
             B1[Wheel build]
             B2[Docker build + smoke test]
         end
+        L3a --> L3b
+        L3a --> L3c
     end
 
     subgraph L4["4. CI - Security Scanning"]
@@ -87,9 +89,9 @@ Each layer catches different classes of issues:
 | --- | --- | --- |
 | **Editor** | As you type | Type errors, formatting, AI-aware context via custom instructions |
 | **Pre-commit** | On `git commit` (staged files) | Style drift, security anti-patterns, broken configs, stale lockfiles |
-| **CI quality gate** | On PR | Lock verification, full repo-wide type safety, code quality, test regressions, coverage, build validation. Split into three sub-layers: *code quality* (lock-verify, format, lint, type checks, Bandit, markdown lint), *tests* (PyTest + coverage), and *build validation* (wheel build + Docker build & smoke test, both path-filtered) |
-| **CI security** | On PR / push to main / schedule | Dataflow vulnerabilities, outdated dependencies, security posture gaps |
-| **Copilot Review** | On PR (after security review) | AI-powered code review with suggestions and inline comments |
+| **CI quality gate** | On PR | Code quality runs first (lock-verify, format, lint, type checks, Bandit, markdown lint), then tests (PyTest + coverage) and build validation (wheel build + Docker build & smoke test) run in parallel |
+| **CI security** | On PR (after quality gate) | CodeQL SAST, Dependabot dependency updates, Copilot security review agent (15 posture categories) |
+| **Copilot Review** | On PR (after security review approves) | AI-powered code review with suggestions and inline comments |
 | **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
 ---
@@ -127,44 +129,70 @@ Repo root
 ├─ .github/                                    # GitHub configuration and automation
 │  ├─ actions/                                  # reusable composite actions
 │  │  └─ setup-python-env/                      # set up uv + install dependencies
-│  ├─ workflows/                               # GitHub Actions workflows
-│  │  ├─ python-code-quality.yml               # format, lint, type-check, security scan
-│  │  ├─ python-tests.yml                      # pytest across Python matrix
-│  │  ├─ python-docs.yml                       # build Sphinx docs, deploy to GitHub Pages
-│  │  ├─ python-release.yml                    # build and publish agent packages
-│  │  ├─ python-package-build.yml              # build changed agent wheels on PR
-│  │  ├─ python-docker-build.yml               # build and smoke-test agent Docker images
-│  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
-│  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
-│  │  ├─ security-review.md                    # agentic workflow (security review)
-│  │  └─ security-review.lock.yml              # compiled agentic workflow (generated)
+│  │     ├─ action.yml                          # composite action definition
+│  │     └─ README.md                           # action usage docs
 │  ├─ agents/                                  # Copilot custom agents (*.agent.md)
-│  │  ├─ security-reviewer.agent.md            # security reviewer agent
-│  │  └─ agentic-workflows.agent.md            # dispatcher agent (gh aw init)
+│  │  ├─ agentic-workflows.agent.md            # dispatcher agent (gh aw init)
+│  │  └─ security-reviewer.agent.md            # security reviewer agent
+│  ├─ aw/                                      # agentic workflow lock data (generated)
+│  │  └─ actions-lock.json                     # compiled action references (generated)
 │  ├─ instructions/                            # Copilot custom instructions
-│  │  ├─ python.instructions.md                # Python coding conventions
-│  │  ├─ agents.instructions.md                # agent development guidelines
-│  │  ├─ docs.instructions.md                  # documentation conventions
 │  │  ├─ agentic-workflows.instructions.md     # agentic workflow authoring
-│  │  └─ copilot-agents.instructions.md        # Copilot agent file format
+│  │  ├─ agents.instructions.md                # agent development guidelines
+│  │  ├─ copilot-agents.instructions.md        # Copilot agent file format
+│  │  ├─ docs.instructions.md                  # documentation conventions
+│  │  └─ python.instructions.md                # Python coding conventions
 │  ├─ ISSUE_TEMPLATE/                          # issue templates (bug, feature)
-│  ├─ pull_request_template.md                 # PR template
-│  ├─ dependabot.yml                           # Dependabot config
+│  │  ├─ bug_report.yml                        # bug report template
+│  │  └─ feature_request.yml                   # feature request template
+│  ├─ workflows/                               # GitHub Actions workflows
+│  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
+│  │  ├─ copilot-review.lock.yml               # compiled agentic workflow (generated)
+│  │  ├─ copilot-review.md                     # agentic workflow (add Copilot reviewer)
+│  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
+│  │  ├─ pr-orchestrator.yml                   # PR pipeline: quality → tests+build → CodeQL
+│  │  ├─ pr-review-comment-handler.lock.yml    # compiled agentic workflow (generated)
+│  │  ├─ pr-review-comment-handler.md          # agentic workflow (triage review comments)
+│  │  ├─ python-code-quality.yml               # format, lint, type-check, security scan
+│  │  ├─ python-docker-build.yml               # build and smoke-test agent Docker images
+│  │  ├─ python-docs.yml                       # build Sphinx docs, deploy to GitHub Pages
+│  │  ├─ python-package-build.yml              # build changed agent wheels on PR
+│  │  ├─ python-release.yml                    # build and publish agent packages
+│  │  ├─ python-tests.yml                      # pytest across Python matrix
+│  │  ├─ security-review.lock.yml              # compiled agentic workflow (generated)
+│  │  └─ security-review.md                    # agentic workflow (security review)
+│  ├─ CODEOWNERS                               # code ownership rules
 │  ├─ copilot-instructions.md                  # global Copilot instructions
-│  └─ aw/                                      # agentic workflow lock data (generated)
+│  ├─ dependabot.yml                           # Dependabot config
+│  └─ pull_request_template.md                 # PR template
+├─ .vscode/                                    # VS Code workspace settings
+│  ├─ extensions.json                          # recommended extensions
+│  ├─ launch.json                              # debug configurations
+│  ├─ settings.json                            # editor and tool settings
+│  └─ tasks.json                               # task runner definitions
 ├─ agents/
 │  └─ <agent>/
+│     ├─ docs/source/                          # Sphinx sources
 │     ├─ src/<project>/agents/<agent>/         # agent code
 │     ├─ tests/                                # agent tests
-│     ├─ docs/source/                          # Sphinx sources
 │     ├─ Dockerfile                            # container image
-│     ├─ pyproject.toml                        # agent config, deps, version
-│     └─ LICENSE                               # agent-specific license
+│     ├─ LICENSE                               # agent-specific license
+│     └─ pyproject.toml                        # agent config, deps, version
 ├─ docs/                                       # unified Sphinx sources + output
 ├─ scripts/                                    # shared helpers for tasks/CI
+├─ .gitattributes                              # Git attributes (line endings, diff)
+├─ .gitignore                                  # Git ignore rules
+├─ .pre-commit-config.yaml                     # pre-commit hook definitions
+├─ CODE_OF_CONDUCT.md                          # contributor code of conduct
+├─ CODING_STANDARDS.md                         # coding standards and conventions
+├─ CONTRIBUTING.md                             # contribution guidelines
+├─ DEVELOPMENT.md                              # development guide
+├─ LICENSE                                     # project license
+├─ README.md                                   # project overview (this file)
+├─ SECURITY.md                                 # security policy
 ├─ pyproject.toml                              # root config, deps, poe tasks
 ├─ shared_tasks.toml                           # poe tasks shared by all agents
-└─ .pre-commit-config.yaml                     # pre-commit hook definitions
+└─ uv.lock                                     # locked dependency versions
 ```
 
 ### Scripts (`scripts/`)
@@ -244,7 +272,7 @@ flowchart TD
 
 ### CI workflows — on every PR
 
-Every pull request triggers up to six parallel workflows. Code quality and tests run on all PRs across a Python 3.10–3.13 matrix. Package build and Docker build are path-filtered — they only run when agent source code, pyproject files, or Dockerfiles change. CodeQL and the Copilot security agent provide additional security coverage.
+Every pull request triggers the PR orchestrator, which runs workflows sequentially. Code quality must pass before tests and build validation run in parallel. CodeQL runs after tests and builds succeed. Finally, the Copilot security review agent analyses the changes against 15 security posture categories.
 
 ```mermaid
 flowchart TD
@@ -253,18 +281,17 @@ flowchart TD
         T1["PR opened / sync"]
     end
 
-    trigger --> CQ_QUAL["python-code-quality.yml<br/>Python 3.10–3.13 matrix"]
-    trigger --> CQ_TEST["python-tests.yml<br/>Python 3.10–3.13 matrix"]
-    trigger --> PB["python-package-build.yml<br/>Wheel build<br/>(path-filtered)"]
-    trigger --> DK["python-docker-build.yml<br/>Docker build &amp; smoke test<br/>(path-filtered)"]
-    trigger --> CQ["codeql-analysis.yml<br/>CodeQL SAST<br/>(PR + push to main only)"]
-    trigger --> SR["security-review.md<br/>Copilot security agent<br/>(PR only)"]
+    trigger --> CQ_QUAL["Stage 1 · python-code-quality.yml<br/>Python 3.10–3.13 matrix"]
 
     CQ_QUAL --> CQ_QUAL1["uv sync"]
     CQ_QUAL1 --> CQ_QUAL1b["Lock verify"]
     CQ_QUAL1b --> CQ_QUAL2["Format + Lint"]
     CQ_QUAL2 --> CQ_QUAL3["Pyright + MyPy"]
     CQ_QUAL3 --> CQ_QUAL4["Bandit + Markdown lint"]
+
+    CQ_QUAL4 --> CQ_TEST["Stage 2 · python-tests.yml<br/>Python 3.10–3.13 matrix"]
+    CQ_QUAL4 --> PB["Stage 2 · python-package-build.yml<br/>Wheel build"]
+    CQ_QUAL4 --> DK["Stage 2 · python-docker-build.yml<br/>Docker build &amp; smoke test"]
 
     CQ_TEST --> CQ_TEST1["uv sync"]
     CQ_TEST1 --> CQ_TEST2["poe test"]
@@ -277,15 +304,19 @@ flowchart TD
     DK1 --> DK2["docker build"]
     DK2 --> DK3["Smoke test<br/>(--help)"]
 
+    CQ_TEST2 --> CQ["Stage 3 · codeql-analysis.yml<br/>CodeQL SAST"]
+    PB3 --> CQ
+    DK3 --> CQ
+
     CQ --> CQ1["CodeQL init<br/>(Python + Actions)"]
     CQ1 --> CQ2["Autobuild"]
     CQ2 --> CQ3["CodeQL analyze"]
 
+    CQ3 --> SR["Stage 4 · security-review.md<br/>Copilot security agent"]
     SR --> SR1["Read PR diff"]
     SR1 --> SR2["Review 15 security<br/>posture categories"]
     SR2 --> SR3["Post inline review<br/>comments"]
-    SR3 --> SR4["Submit review<br/>(REQUEST_CHANGES<br/>or COMMENT)"]
-    SR4 --> SR5["Assign Copilot<br/>as PR reviewer"]
+    SR3 --> SR4["Submit review<br/>(REQUEST_CHANGES<br/>or APPROVE)"]
 ```
 
 ### Release workflow — on push to main or manual dispatch
@@ -517,7 +548,7 @@ Publishing is **commented out** by default — the workflow only creates tags an
 
 ## Agentic workflows
 
-The repository includes a [GitHub Agentic Workflow](https://github.github.com/gh-aw/) that automates security review on every pull request.
+The repository includes [GitHub Agentic Workflows](https://github.github.com/gh-aw/) that automate security review, Copilot code review, and PR review comment triage on every pull request.
 
 ### Security review agent
 
@@ -525,34 +556,37 @@ A Copilot custom agent defined in [`.github/agents/security-reviewer.agent.md`](
 
 ### Security review workflow
 
-The agentic workflow at [`.github/workflows/security-review.md`](.github/workflows/security-review.md) imports the security review agent and runs on every `pull_request` event (`opened`, `synchronize`). It:
+The agentic workflow at [`.github/workflows/security-review.md`](.github/workflows/security-review.md) imports the security review agent and runs as part of the PR orchestrator pipeline (after all CI checks pass). It:
 
 1. Reads the pull request diff.
 2. Reviews changed files against all 15 security posture categories.
 3. Posts inline review comments on specific code lines where issues are found.
-4. Submits a consolidated review (`REQUEST_CHANGES` for critical/high, `COMMENT` otherwise).
-5. Requests Copilot as a reviewer for additional code quality coverage.
+4. Submits a consolidated review (`REQUEST_CHANGES` for critical/high, `APPROVE` otherwise).
 
 >[!IMPORTANT]
 > The `security-review.md` workflow is using the custom agent `.github/agents/security-reviewer.agent.md` which is defined in this repository. To be able to use this agent with `copilot` AI Engine, `COPILOT_GITHUB_TOKEN` secret must be added to the repository with a fine-grained PAT that has `Copilot Requests: Read-only` scope on public repositories. For more information see the [documentation](https://github.github.com/gh-aw/reference/auth/#copilot_github_token).
 
 ### Copilot code review
 
-The [`add-reviewer` safe-output](https://github.github.com/gh-aw/reference/safe-outputs/#add-reviewer-add-reviewer) in the workflow assigns Copilot as a PR reviewer after the security review completes. This requires a fine-grained PAT stored as the [`GH_AW_AGENT_TOKEN` repository secret]https://github.github.com/gh-aw/reference/auth/#gh_aw_agent_token) with:
+The agentic workflow at [`.github/workflows/copilot-review.md`](.github/workflows/copilot-review.md) triggers when a PR review is submitted. It checks whether the security review agent approved the PR and, if so, adds Copilot as a reviewer for additional code quality coverage. This requires a fine-grained PAT stored as the [`GH_AW_AGENT_TOKEN` repository secret](https://github.github.com/gh-aw/reference/auth/#gh_aw_agent_token) with:
 
 - Resource owner: Your user account
-- Repository access: “Public repositories” or select specific repos
+- Repository access: "Public repositories" or select specific repos
 - Repository permissions:
     - Actions: Write
     - Contents: Write
     - Issues: Write
     - Pull requests: Write
 
-<!-- As an additional safeguard, configure **branch protection rules** to require Copilot review on all PRs (not just those that trigger the security workflow):
+### PR review comment handler
 
-1. Go to **Settings → Rules → Rulesets** (or **Branches → Branch protection rules**).
-2. Under **Require a pull request before merging**, add `copilot` as a **required reviewer**.
-3. Copilot will automatically review every PR targeting the protected branch. -->
+The agentic workflow at [`.github/workflows/pr-review-comment-handler.md`](.github/workflows/pr-review-comment-handler.md) triggers when a review comment is posted on a PR. It triages comments into three categories:
+
+1. **Needs fixing** — replies tagging `@copilot` to address the issue directly.
+2. **Low priority** — creates a tracking issue for minor items (including medium/low security findings).
+3. **Not relevant** — resolves the review thread.
+
+Comments that cannot be classified are escalated by tagging the PR author.
 
 ### Compiling agentic workflows
 
