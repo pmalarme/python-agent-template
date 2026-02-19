@@ -28,9 +28,10 @@ runs:
       shell: bash
       env:
         EXTRA_ARGS: ${{ inputs.extra-args }}
+        INCLUDE_DOCS: ${{ inputs.include-docs }}
       run: |
         args="--all-extras --dev"
-        if [[ "${{ inputs.include-docs }}" == "true" ]]; then
+        if [[ "$INCLUDE_DOCS" == "true" ]]; then
           args="$args --group docs"
         fi
         # shellcheck disable=SC2086  # intentional word-splitting for uv flags
