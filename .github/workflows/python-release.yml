@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: write          # create tags, releases, and upload assets
-  packages: write
 
 jobs:
   release:
