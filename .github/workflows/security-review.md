@@ -14,9 +14,11 @@ permissions:
 engine:
   id: copilot
   agent: security-reviewer
+  model: GPT-5.3-Codex (copilot)
 
 tools:
-  cache-memory: true
+  cache-memory:
+    key: "memory-${{ github.workflow }}-${{ github.event.pull_request.number }}"
   github:
     toolsets: [repos, pull_requests]
 
