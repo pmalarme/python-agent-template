@@ -29,10 +29,13 @@ jobs:
 
       - name: Find changed agents with Dockerfiles
         id: find
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           # Get the base ref to diff against
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BASE="$BASE_SHA"
           else
             BASE="HEAD~1"
           fi
