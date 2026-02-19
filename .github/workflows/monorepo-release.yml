@@ -61,7 +61,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ steps.version.outputs.tag }}
           VERSION: ${{ steps.version.outputs.version }}
-          REPO: ${{ github.repository }}
+          GH_REPOSITORY: ${{ github.repository }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -71,7 +71,7 @@ jobs:
 
           # Push using explicit URL — token never stored in .git/config
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
-          git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${REPO}.git" "$TAG"
+          git push "https://x-access-token:${GH_TOKEN}@${REMOTE_HOST}/${GH_REPOSITORY}.git" "$TAG"
 
           # Generate release notes from merged PRs since previous monorepo tag
           PREV_TAG=$(git tag --list "v*" --sort=-v:refname \
