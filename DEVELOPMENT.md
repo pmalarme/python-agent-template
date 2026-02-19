@@ -532,31 +532,38 @@ The [release workflow](.github/workflows/python-release.yml) triggers on pushes 
 
 To release an agent: bump its version in `agents/<agent>/pyproject.toml`, merge to main, and create a GitHub release.
 
-#### Changing the publish target
+#### Configuring the publish target
 
-By default, packages are published to GitHub Packages. To publish to a different registry (e.g., PyPI, a private Artifactory, or Azure Artifacts), update two places:
+> **Note:** GitHub Packages does **not** support a Python/pip registry. You must configure either Azure Artifacts or PyPI.
 
-1. **`pyproject.toml`** — update the `[[tool.uv.index]]` section at the bottom of the file:
+Choose one of the following registries and update two places:
 
-   ```toml
-   [[tool.uv.index]]
-   name = "pypi"               # or your registry name
-   url = "https://pypi.org/simple/"
-   publish-url = "https://upload.pypi.org/legacy/"
-   explicit = true
-   ```
+1. **`pyproject.toml`** — uncomment the matching `[[tool.uv.index]]` block at the bottom of the file:
 
-2. **`.github/workflows/python-release.yml`** — update the environment variables in the publish step:
+   - **Azure Artifacts** (recommended for private packages):
 
-   ```yaml
-   - name: Publish to PyPI
-     env:
-       UV_PUBLISH_URL: https://upload.pypi.org/legacy/
-       UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-     run: uv run poe publish
-   ```
+     ```toml
+     [[tool.uv.index]]
+     name = "azure"
+     url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/simple/"
+     publish-url = "https://pkgs.dev.azure.com/<ORG>/<PROJECT>/_packaging/<FEED>/pypi/upload/"
+     explicit = true
+     ```
 
-   For PyPI, create an API token and store it as a repository secret (`PYPI_TOKEN`). For GitHub Packages, the built-in `GITHUB_TOKEN` is used automatically.
+   - **PyPI** (public packages):
+
+     ```toml
+     [[tool.uv.index]]
+     name = "pypi"
+     url = "https://pypi.org/simple/"
+     publish-url = "https://upload.pypi.org/legacy/"
+     explicit = true
+     ```
+
+2. **`.github/workflows/python-release.yml`** — uncomment the matching publish step:
+
+   - **Azure Artifacts**: generate a PAT with Packaging > Read & Write scope, store it as `AZURE_ARTIFACTS_TOKEN`, and uncomment the Azure Artifacts block.
+   - **PyPI**: create an API token at <https://pypi.org/manage/account/token/>, store it as `PYPI_TOKEN`, and uncomment the PyPI block.
 
 ### Documentation
 
