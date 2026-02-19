@@ -378,7 +378,7 @@ Publish all packages in `dist/` to the configured package index:
 uv run poe publish
 ```
 
-This runs a single `uv publish` from the workspace root, uploading everything in `dist/`. The target index is configured in `pyproject.toml` under `[tool.uv.index]` (defaults to GitHub Packages).
+This runs a single `uv publish` from the workspace root, uploading everything in `dist/`. Publishing is **disabled by default** — no registry is configured out of the box because GitHub Packages does not support a Python/pip registry. To enable publishing, uncomment one of the `[[tool.uv.index]]` blocks in `pyproject.toml` (Azure Artifacts for private packages or PyPI for public packages) and set the matching `UV_PUBLISH_URL` / `UV_PUBLISH_TOKEN` in the release workflow.
 
 Each agent has its own version; the registry rejects duplicate versions, so only agents whose version was bumped actually get uploaded.
 
