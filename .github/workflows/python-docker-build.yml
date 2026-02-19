@@ -46,6 +46,10 @@ jobs:
             | cut -d/ -f2 \
             | sort -u \
             | while read -r agent; do
+                if [[ ! "$agent" =~ ^[a-z0-9][a-z0-9_-]*$ ]]; then
+                  echo "::warning::Skipping agent with invalid name: '$agent'" >&2
+                  continue
+                fi
                 if [[ -f "agents/$agent/Dockerfile" ]]; then
                   echo "$agent"
                 fi
