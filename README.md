@@ -568,7 +568,6 @@ The agentic workflow at [`.github/workflows/create-issue-command.md`](.github/wo
 1. Fetches the review comment and its parent.
 2. Creates a GitHub issue summarizing the finding.
 3. Replies to the review thread with a link to the created issue.
-4. Resolves the review thread.
 
 ### Compiling agentic workflows
 

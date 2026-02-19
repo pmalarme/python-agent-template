@@ -20,9 +20,6 @@ safe-outputs:
   reply-to-pull-request-review-comment:
     max: 1
     github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
-  resolve-pull-request-review-thread:
-    max: 1
-    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
   create-issue:
     max: 1
 ---
@@ -64,8 +61,6 @@ when a user requests it with the `/create-issue` command.
    the issue number and link (e.g., "Created issue #<number> to track this
    finding.").
 
-5. **Resolve the review thread** after replying.
-
 ## Guidelines
 
 - If the `/create-issue` command includes additional text after it (e.g.,
@@ -83,5 +78,3 @@ when a user requests it with the `/create-issue` command.
 
 - Use `create-issue` to create the tracking issue.
 - Use `reply-to-pull-request-review-comment` to confirm the issue was created.
-- Use `resolve-pull-request-review-thread` to resolve the thread after
-  creating the issue.
