@@ -82,4 +82,5 @@ jobs:
       - name: Smoke test
         env:
           AGENT: ${{ matrix.agent }}
-        run: docker run --rm "${AGENT}:ci" --help || true
+        run: |
+          docker run --rm "${AGENT}:ci" --help; rc=$?; [ "$rc" -le 1 ] || exit "$rc"
