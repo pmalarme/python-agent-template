@@ -29,7 +29,7 @@ safe-outputs:
     max: 1
     footer: false
   add-reviewer:
-    reviewers: [copilot, pmalarme]
+    reviewers: [copilot]
     max: 3
     target: "triggering"
 ---
