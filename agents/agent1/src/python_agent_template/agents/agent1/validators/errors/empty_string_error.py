@@ -1,5 +1,7 @@
 """Exception raised for empty string values."""
 
+from __future__ import annotations
+
 
 class EmptyStringError(ValueError):
     """Raised when a string is empty after trimming whitespace."""
