@@ -26,9 +26,12 @@ runs:
 
     - name: Install dependencies
       shell: bash
+      env:
+        EXTRA_ARGS: ${{ inputs.extra-args }}
       run: |
         args="--all-extras --dev"
         if [[ "${{ inputs.include-docs }}" == "true" ]]; then
           args="$args --group docs"
         fi
-        uv sync $args ${{ inputs.extra-args }}
+        # shellcheck disable=SC2086  # intentional word-splitting for uv flags
+        uv sync $args $EXTRA_ARGS
