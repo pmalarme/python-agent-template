@@ -3,7 +3,8 @@ description: Automated security review for pull requests. Analyzes changed files
   15 security posture categories and posts inline review comments on findings.
 
 on:
-  workflow_call:
+  pull_request:
+    types: [opened, synchronize]
 
 permissions:
   contents: read

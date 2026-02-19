@@ -2,7 +2,8 @@ name: "Python: tests"
 
 on:
   workflow_dispatch:
-  workflow_call:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
 
 permissions:
   contents: read

@@ -89,8 +89,8 @@ Each layer catches different classes of issues:
 | --- | --- | --- |
 | **Editor** | As you type | Type errors, formatting, AI-aware context via custom instructions |
 | **Pre-commit** | On `git commit` (staged files) | Style drift, security anti-patterns, broken configs, stale lockfiles |
-| **CI quality gate** | On PR | Code quality runs first (lock-verify, format, lint, type checks, Bandit, markdown lint), then tests (PyTest + coverage) and build validation (wheel build + Docker build & smoke test) run in parallel |
-| **CI security** | On PR (after quality gate) | CodeQL SAST, Dependabot dependency updates, Copilot security review agent (15 posture categories) |
+| **CI quality gate** | On PR | Lock verification, full repo-wide type safety, code quality, test regressions, coverage, build validation. Split into three sub-layers: *code quality* (lock-verify, format, lint, type checks, Bandit, markdown lint), *tests* (PyTest + coverage), and *build validation* (wheel build + Docker build & smoke test, both path-filtered) |
+| **CI security** | On PR / push to main / schedule | CodeQL SAST, Dependabot dependency updates, Copilot security review agent (15 posture categories) |
 | **Copilot Review** | On PR (after security review approves) | AI-powered code review with suggestions and inline comments |
 | **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
@@ -150,7 +150,6 @@ Repo root
 │  │  ├─ copilot-review.lock.yml               # compiled agentic workflow (generated)
 │  │  ├─ copilot-review.md                     # agentic workflow (add Copilot reviewer)
 │  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
-│  │  ├─ pr-orchestrator.yml                   # PR pipeline: quality → tests+build → CodeQL
 │  │  ├─ pr-review-comment-handler.lock.yml    # compiled agentic workflow (generated)
 │  │  ├─ pr-review-comment-handler.md          # agentic workflow (triage review comments)
 │  │  ├─ python-code-quality.yml               # format, lint, type-check, security scan
@@ -272,7 +271,7 @@ flowchart TD
 
 ### CI workflows — on every PR
 
-Every pull request triggers the PR orchestrator, which runs workflows in three stages. Code quality checks run first, then CodeQL SAST runs after quality passes — ensuring only clean code gets the expensive security scan. Tests and build validation run in parallel after all static analysis passes. Finally, the Copilot security review agent analyses the changes against 15 security posture categories.
+Every pull request triggers up to six parallel workflows. Code quality and tests run on all PRs across a Python 3.10–3.13 matrix. Package build and Docker build are path-filtered — they only run when agent source code, pyproject files, or Dockerfiles change. CodeQL and the Copilot security agent provide additional security coverage.
 
 ```mermaid
 flowchart TD
@@ -281,23 +280,18 @@ flowchart TD
         T1["PR opened / sync"]
     end
 
-    trigger --> CQ_QUAL["Stage 1a · python-code-quality.yml<br/>Python 3.10–3.13 matrix"]
+    trigger --> CQ_QUAL["python-code-quality.yml<br/>Python 3.10–3.13 matrix"]
+    trigger --> CQ_TEST["python-tests.yml<br/>Python 3.10–3.13 matrix"]
+    trigger --> PB["python-package-build.yml<br/>Wheel build<br/>(path-filtered)"]
+    trigger --> DK["python-docker-build.yml<br/>Docker build &amp; smoke test<br/>(path-filtered)"]
+    trigger --> CQ["codeql-analysis.yml<br/>CodeQL SAST<br/>(PR + push to main only)"]
+    trigger --> SR["security-review.md<br/>Copilot security agent<br/>(PR only)"]
 
     CQ_QUAL --> CQ_QUAL1["uv sync"]
     CQ_QUAL1 --> CQ_QUAL1b["Lock verify"]
     CQ_QUAL1b --> CQ_QUAL2["Format + Lint"]
     CQ_QUAL2 --> CQ_QUAL3["Pyright + MyPy"]
     CQ_QUAL3 --> CQ_QUAL4["Bandit + Markdown lint"]
-
-    CQ_QUAL4 --> CQ["Stage 1b · codeql-analysis.yml<br/>CodeQL SAST"]
-
-    CQ --> CQ1["CodeQL init<br/>(Python + Actions)"]
-    CQ1 --> CQ2["Autobuild"]
-    CQ2 --> CQ3["CodeQL analyze"]
-
-    CQ3 --> CQ_TEST["Stage 2 · python-tests.yml<br/>Python 3.10–3.13 matrix"]
-    CQ3 --> PB["Stage 2 · python-package-build.yml<br/>Wheel build"]
-    CQ3 --> DK["Stage 2 · python-docker-build.yml<br/>Docker build &amp; smoke test"]
 
     CQ_TEST --> CQ_TEST1["uv sync"]
     CQ_TEST1 --> CQ_TEST2["poe test"]
@@ -310,9 +304,9 @@ flowchart TD
     DK1 --> DK2["docker build"]
     DK2 --> DK3["Smoke test<br/>(--help)"]
 
-    CQ_TEST2 --> SR["Stage 3 · security-review.md<br/>Copilot security agent"]
-    PB3 --> SR
-    DK3 --> SR
+    CQ --> CQ1["CodeQL init<br/>(Python + Actions)"]
+    CQ1 --> CQ2["Autobuild"]
+    CQ2 --> CQ3["CodeQL analyze"]
 
     SR --> SR1["Read PR diff"]
     SR1 --> SR2["Review 15 security<br/>posture categories"]

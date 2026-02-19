@@ -2,7 +2,11 @@ name: "Python: package build"
 
 on:
   workflow_dispatch:
-  workflow_call:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+    paths:
+      - "agents/*/pyproject.toml"
+      - "agents/*/src/**"
 
 permissions:
   contents: read

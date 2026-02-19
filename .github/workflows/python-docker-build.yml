@@ -2,7 +2,12 @@ name: "Python: docker build & smoke test"
 
 on:
   workflow_dispatch:
-  workflow_call:
+  pull_request:
+    branches: ["main", "feature*", "fix*"]
+    paths:
+      - "agents/*/Dockerfile"
+      - "agents/*/src/**"
+      - "agents/*/pyproject.toml"
 
 permissions:
   contents: read
