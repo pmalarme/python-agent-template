@@ -23,7 +23,7 @@
 #
 # Automated security review for pull requests. Analyzes changed files against 15 security posture categories and posts inline review comments on findings.
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"c87e44a92ddf8b44433cf05429a3822db7b56f91a35785c5e652ed91cb2abf54","compiler_version":"v0.46.3"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"422dc49af5e1e204a6f7318c550060cb008c2adddb5a1e68f9046345705da4d0","compiler_version":"v0.46.3"}
 
 name: "Security Review"
 "on":
@@ -114,7 +114,7 @@ jobs:
           cat "/opt/gh-aw/prompts/xpia.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/temp_folder_prompt.md" >> "$GH_AW_PROMPT"
           cat "/opt/gh-aw/prompts/markdown.md" >> "$GH_AW_PROMPT"
-          cat "/opt/gh-aw/prompts/cache_memory_prompt_multi.md" >> "$GH_AW_PROMPT"
+          cat "/opt/gh-aw/prompts/cache_memory_prompt.md" >> "$GH_AW_PROMPT"
           cat << 'GH_AW_PROMPT_EOF' >> "$GH_AW_PROMPT"
           <safe-outputs>
           <description>GitHub API Access Instructions</description>
@@ -195,22 +195,8 @@ jobs:
         env:
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_ALLOWED_EXTENSIONS: ''
-          GH_AW_CACHE_EXAMPLES: '- `/tmp/gh-aw/cache-memory-pull-request-review-context/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-pull-request-review-context/state/` - organized state files in subdirectories (with allowed file types)
-- `/tmp/gh-aw/cache-memory-review patterns/notes.txt` - general notes and observations
-- `/tmp/gh-aw/cache-memory-review patterns/notes.md` - markdown formatted notes
-- `/tmp/gh-aw/cache-memory-review patterns/preferences.json` - user preferences and settings
-- `/tmp/gh-aw/cache-memory-review patterns/history.jsonl` - activity history in JSON Lines format
-- `/tmp/gh-aw/cache-memory-review patterns/data.csv` - tabular data
-- `/tmp/gh-aw/cache-memory-review patterns/state/` - organized state files in subdirectories (with allowed file types)
-'
-          GH_AW_CACHE_LIST: '- **pull-request-review-context**: `/tmp/gh-aw/cache-memory-pull-request-review-context/`
-- **review patterns**: `/tmp/gh-aw/cache-memory-review patterns/`
-'
+          GH_AW_CACHE_DESCRIPTION: ''
+          GH_AW_CACHE_DIR: '/tmp/gh-aw/cache-memory/'
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
           GH_AW_GITHUB_EVENT_COMMENT_ID: ${{ github.event.comment.id }}
           GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: ${{ github.event.discussion.number }}
@@ -233,8 +219,8 @@ jobs:
               file: process.env.GH_AW_PROMPT,
               substitutions: {
                 GH_AW_ALLOWED_EXTENSIONS: process.env.GH_AW_ALLOWED_EXTENSIONS,
-                GH_AW_CACHE_EXAMPLES: process.env.GH_AW_CACHE_EXAMPLES,
-                GH_AW_CACHE_LIST: process.env.GH_AW_CACHE_LIST,
+                GH_AW_CACHE_DESCRIPTION: process.env.GH_AW_CACHE_DESCRIPTION,
+                GH_AW_CACHE_DIR: process.env.GH_AW_CACHE_DIR,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
                 GH_AW_GITHUB_EVENT_COMMENT_ID: process.env.GH_AW_GITHUB_EVENT_COMMENT_ID,
                 GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER: process.env.GH_AW_GITHUB_EVENT_DISCUSSION_NUMBER,
@@ -298,26 +284,15 @@ jobs:
       - name: Create gh-aw temp directory
         run: bash /opt/gh-aw/actions/create_gh_aw_tmp_dir.sh
       # Cache memory file share configuration from frontmatter processed below
-      - name: Create cache-memory directory (pull-request-review-context)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Restore cache-memory file share data (pull-request-review-context)
+      - name: Create cache-memory directory
+        run: bash /opt/gh-aw/actions/create_cache_memory_dir.sh
+      - name: Restore cache-memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
+          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            security-review-pr-${{ github.event.pull_request.number }}-
-      - name: Create cache-memory directory (review patterns)
-        run: |
-          mkdir -p /tmp/gh-aw/cache-memory-review patterns
-      - name: Restore cache-memory file share data (review patterns)
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-patterns-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-review patterns
-          restore-keys: |
-            security-review-patterns-
+            memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -754,7 +729,7 @@ jobs:
         run: |
           set -o pipefail
           sudo -E awf --env-all --container-workdir "${GITHUB_WORKSPACE}" --allow-domains api.business.githubcopilot.com,api.enterprise.githubcopilot.com,api.github.com,api.githubcopilot.com,api.individual.githubcopilot.com,api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,github.com,host.docker.internal,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,raw.githubusercontent.com,registry.npmjs.org,s.symcb.com,s.symcd.com,security.ubuntu.com,telemetry.enterprise.githubcopilot.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com --log-level info --proxy-logs-dir /tmp/gh-aw/sandbox/firewall/logs --enable-host-access --image-tag 0.20.0 --skip-pull --enable-api-proxy \
-            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent security-reviewer --allow-all-tools --add-dir /tmp/gh-aw/cache-memory-pull-request-review-context/ --add-dir '\''/tmp/gh-aw/cache-memory-review patterns/'\'' --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
+            -- /bin/bash -c '/usr/local/bin/copilot --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --add-dir "${GITHUB_WORKSPACE}" --disable-builtin-mcps --agent security-reviewer --allow-all-tools --add-dir /tmp/gh-aw/cache-memory/ --allow-all-paths --share /tmp/gh-aw/sandbox/agent/logs/conversation.md --prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"${GH_AW_MODEL_AGENT_COPILOT:+ --model "$GH_AW_MODEL_AGENT_COPILOT"}' 2>&1 | tee -a /tmp/gh-aw/agent-stdio.log
         env:
           COPILOT_AGENT_RUNNER_TYPE: STANDALONE
           COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
@@ -891,19 +866,12 @@ jobs:
           else
             echo 'AWF binary not installed, skipping firewall log summary'
           fi
-      - name: Upload cache-memory data as artifact (pull-request-review-context)
+      - name: Upload cache-memory data as artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         if: always()
         with:
-          name: cache-memory-pull-request-review-context
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Upload cache-memory data as artifact (review patterns)
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        if: always()
-        with:
-          name: cache-memory-review patterns
-          path: /tmp/gh-aw/cache-memory-review patterns
-          retention-days: 30
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true
@@ -1198,25 +1166,14 @@ jobs:
         uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
         with:
           destination: /opt/gh-aw/actions
-      - name: Download cache-memory artifact (pull-request-review-context)
+      - name: Download cache-memory artifact (default)
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
         continue-on-error: true
         with:
-          name: cache-memory-pull-request-review-context
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Save cache-memory to cache (pull-request-review-context)
+          name: cache-memory
+          path: /tmp/gh-aw/cache-memory
+      - name: Save cache-memory to cache (default)
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-pull-request-review-context
-      - name: Download cache-memory artifact (review patterns)
-        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53 # v6
-        continue-on-error: true
-        with:
-          name: cache-memory-review patterns
-          path: /tmp/gh-aw/cache-memory-review patterns
-      - name: Save cache-memory to cache (review patterns)
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          key: security-review-patterns-${{ github.run_id }}
-          path: /tmp/gh-aw/cache-memory-review patterns
+          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          path: /tmp/gh-aw/cache-memory

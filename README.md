@@ -553,7 +553,7 @@ A Copilot custom agent defined in [`.github/agents/security-reviewer.agent.md`](
 
 ### Security review workflow
 
-The agentic workflow at [`.github/workflows/security-review.md`](.github/workflows/security-review.md) imports the security review agent and runs as part of the PR orchestrator pipeline (after all CI checks pass). It:
+The agentic workflow at [`.github/workflows/security-review.md`](.github/workflows/security-review.md) imports the security review agent and runs on every pull request (triggered by `pull_request: [opened, synchronize]`). It:
 
 1. Reads the pull request diff.
 2. Reviews changed files against all 15 security posture categories.

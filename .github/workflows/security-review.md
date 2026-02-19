@@ -15,12 +15,7 @@ engine:
   agent: security-reviewer
 
 tools:
-  cache-memory:
-    - id: pull-request-review-context
-      key: "security-review-pr-${{ github.event.pull_request.number }}"
-    - id: review patterns
-      key: "security-review-patterns"
-      retention-days: 30
+  cache-memory: true
   github:
     toolsets: [repos, pull_requests]
 
@@ -44,9 +39,9 @@ agent instructions.
 1. **Access memory first.** Use cache memory at
    `/tmp/gh-aw/cache-memory/` to:
    - Check prior review context for this PR at
-     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`. This correspond to the cache memory tool with id `pull-request-review-context` and can contain information about previous review findings, categories, files reviewed, and timestamps for this PR.
+     `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`. It can contain information about previous review findings, categories, files reviewed, and timestamps for this PR.
    - Identify recurring security patterns in this repository from
-     `/tmp/gh-aw/cache-memory/security-review-patterns.json`. This correspond to the cache memory tool with id `review-patterns` and can contain information about recurring security issues and patterns in the repository.
+     `/tmp/gh-aw/cache-memory/security-review-patterns.json`. It can contain information about recurring security issues and patterns in the repository.
    - Avoid repeating the same inline comments from previous reviews if the previous comment is not resolved yet nor outdated (e.g., if the same issue is still present in the code or if the code has not changed since the last review).
 
 2. **Fetch the pull request diff.** Read the pull request details and all
@@ -88,10 +83,10 @@ agent instructions.
    - Write/update PR-specific memory at
      `/tmp/gh-aw/cache-memory/security-review-pr-${{ github.event.pull_request.number }}.json`
      including review timestamp, findings summary, categories found, and files
-     reviewed. The id of the cache memory tool for this is `pull-request-review-context`.
+     reviewed.
    - Update shared pattern memory at
      `/tmp/gh-aw/cache-memory/security-review-patterns.json` with recurring
-     issue themes and counts. The id of the cache memory tool for this is `review-patterns`.
+     issue themes and counts.
 
 ## Review Guidelines
 
