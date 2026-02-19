@@ -53,8 +53,13 @@ jobs:
           for WHL in "${WHEELS[@]}"; do
             # Wheel filename: {name}-{version}-{python}-{abi}-{platform}.whl
             BASENAME=$(basename "$WHL")
-            NAME=$(echo "$BASENAME" | cut -d- -f1)
-            VERSION=$(echo "$BASENAME" | cut -d- -f2)
+            NOEXT=${BASENAME%.whl}
+            # Strip platform, abi, and python tags from the right to get "name-version"
+            REST=${NOEXT%-*}   # drop platform
+            REST=${REST%-*}    # drop abi
+            REST=${REST%-*}    # drop python
+            VERSION=${REST##*-}
+            NAME=${REST%-*}
             TAG="${NAME}-v${VERSION}"
 
             # Validate NAME and VERSION to prevent unexpected values from flowing into git commands
