@@ -289,10 +289,13 @@ jobs:
       - name: Restore cache-memory file share data
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
           restore-keys: |
-            memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
+            security-review-pr-${{ github.event.pull_request.number }}-
+            security-review-pr-
+            security-review-
+            security-
       - name: Configure Git credentials
         env:
           REPO_NAME: ${{ github.repository }}
@@ -1175,5 +1178,5 @@ jobs:
       - name: Save cache-memory to cache (default)
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
-          key: memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-${{ github.run_id }}
+          key: security-review-pr-${{ github.event.pull_request.number }}-${{ github.run_id }}
           path: /tmp/gh-aw/cache-memory
