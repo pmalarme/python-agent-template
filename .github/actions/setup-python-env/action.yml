@@ -35,16 +35,20 @@ runs:
           args="$args --group docs"
         fi
         if [[ -n "$EXTRA_ARGS" ]]; then
-          # Validate each whitespace-split token: must start with '-' and contain only safe flag characters.
-          # NOTE: '--' (end-of-options marker) is intentionally allowed; positional args would fail validation.
+          # Allowlist: only explicitly permitted uv sync flags are accepted.
+          allowed_args=(
+            "--all-packages"
+            "--prerelease=if-necessary-or-explicit"
+            "-U"
+            "--upgrade"
+          )
           for arg in $EXTRA_ARGS; do
-            # Denylist: block flags that could redirect dependency resolution to an attacker-controlled index.
-            if [[ "$arg" =~ ^--(index-url|extra-index-url|trusted-host|find-links)(=|$) ]]; then
-              echo "::error::Blocked dangerous extra-args token: '$arg'. Registry overrides are not permitted." >&2
-              exit 1
-            fi
-            if [[ ! "$arg" =~ ^-[a-zA-Z0-9=._:/@+-]+$ ]]; then
-              echo "::error::Unsafe extra-args token: '$arg'. Each token must start with '-' and contain only safe flag characters." >&2
+            allowed=false
+            for a in "${allowed_args[@]}"; do
+              [[ "$arg" == "$a" ]] && allowed=true && break
+            done
+            if [[ "$allowed" != "true" ]]; then
+              echo "::error::Unrecognized extra-args token: '$arg'. Only the following flags are permitted: ${allowed_args[*]}." >&2
               exit 1
             fi
           done
