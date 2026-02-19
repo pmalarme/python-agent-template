@@ -62,9 +62,9 @@ flowchart TB
         S3[Copilot security review agent — 15 posture categories]
     end
 
-    subgraph L5["5. Copilot Review"]
+    subgraph L5["5. Copilot Review (branch protection)"]
         direction LR
-        CR1[Copilot code review — assigned automatically]
+        CR1[Copilot code review — required reviewer on main]
         CR2[AI-powered suggestions and comments]
     end
 
@@ -91,7 +91,7 @@ Each layer catches different classes of issues:
 | **Pre-commit** | On `git commit` (staged files) | Style drift, security anti-patterns, broken configs, stale lockfiles |
 | **CI quality gate** | On PR | Lock verification, full repo-wide type safety, code quality, test regressions, coverage, build validation. Split into three sub-layers: *code quality* (lock-verify, format, lint, type checks, Bandit, markdown lint), *tests* (PyTest + coverage), and *build validation* (wheel build + Docker build & smoke test, both path-filtered) |
 | **CI security** | On PR / push to main / schedule | CodeQL SAST, Dependabot dependency updates, Copilot security review agent (15 posture categories) |
-| **Copilot Review** | On PR (after security review approves) | AI-powered code review with suggestions and inline comments |
+| **Copilot Review** | On PR targeting `main` (branch protection) | AI-powered code review with suggestions and inline comments, configured as required reviewer |
 | **Release** | On push to main or manual | Agent release: builds changed agents, creates `<agent>-v<version>` tags with wheel assets. Monorepo release: tags shared infra changes as `v<version>` |
 
 ---
@@ -147,11 +147,9 @@ Repo root
 │  │  └─ feature_request.yml                   # feature request template
 │  ├─ workflows/                               # GitHub Actions workflows
 │  │  ├─ codeql-analysis.yml                   # CodeQL security scanning
-│  │  ├─ copilot-review.lock.yml               # compiled agentic workflow (generated)
-│  │  ├─ copilot-review.md                     # agentic workflow (add Copilot reviewer)
 │  │  ├─ monorepo-release.yml                  # tag and release shared monorepo infra
-│  │  ├─ pr-review-comment-handler.lock.yml    # compiled agentic workflow (generated)
-│  │  ├─ pr-review-comment-handler.md          # agentic workflow (triage review comments)
+│  │  ├─ create-issue-command.lock.yml         # compiled agentic workflow (generated)
+│  │  ├─ create-issue-command.md               # agentic workflow (/create-issue command)
 │  │  ├─ python-code-quality.yml               # format, lint, type-check, security scan
 │  │  ├─ python-docker-build.yml               # build and smoke-test agent Docker images
 │  │  ├─ python-docs.yml                       # build Sphinx docs, deploy to GitHub Pages
@@ -311,7 +309,7 @@ flowchart TD
     SR --> SR1["Read PR diff"]
     SR1 --> SR2["Review 15 security<br/>posture categories"]
     SR2 --> SR3["Post inline review<br/>comments"]
-    SR3 --> SR4["Submit review<br/>(REQUEST_CHANGES<br/>or APPROVE)"]
+    SR3 --> SR4["Submit review<br/>(REQUEST_CHANGES<br/>or COMMENT)"]
 ```
 
 ### Release workflow — on push to main or manual dispatch
@@ -545,7 +543,7 @@ Publishing is **commented out** by default — the workflow only creates tags an
 
 ## Agentic workflows
 
-The repository includes [GitHub Agentic Workflows](https://github.github.com/gh-aw/) that automate security review, Copilot code review, and PR review comment triage on every pull request.
+The repository includes [GitHub Agentic Workflows](https://github.github.com/gh-aw/) that automate security review and issue creation from PR review comments.
 
 ### Security review agent
 
@@ -558,32 +556,19 @@ The agentic workflow at [`.github/workflows/security-review.md`](.github/workflo
 1. Reads the pull request diff.
 2. Reviews changed files against all 15 security posture categories.
 3. Posts inline review comments on specific code lines where issues are found.
-4. Submits a consolidated review (`REQUEST_CHANGES` for critical/high, `APPROVE` otherwise).
+4. Submits a consolidated review (`REQUEST_CHANGES` for critical/high, `COMMENT` otherwise).
 
 >[!IMPORTANT]
 > The `security-review.md` workflow is using the custom agent `.github/agents/security-reviewer.agent.md` which is defined in this repository. To be able to use this agent with `copilot` AI Engine, `COPILOT_GITHUB_TOKEN` secret must be added to the repository with a fine-grained PAT that has `Copilot Requests: Read-only` scope on public repositories. For more information see the [documentation](https://github.github.com/gh-aw/reference/auth/#copilot_github_token).
 
-### Copilot code review
+### Create issue command
 
-The agentic workflow at [`.github/workflows/copilot-review.md`](.github/workflows/copilot-review.md) triggers when a PR review is submitted. It checks whether the security review agent approved the PR and, if so, adds Copilot as a reviewer for additional code quality coverage. This requires a fine-grained PAT stored as the [`GH_AW_AGENT_TOKEN` repository secret](https://github.github.com/gh-aw/reference/auth/#gh_aw_agent_token) with:
+The agentic workflow at [`.github/workflows/create-issue-command.md`](.github/workflows/create-issue-command.md) is triggered by the `/create-issue` slash command in PR review comment replies. When invoked, it:
 
-- Resource owner: Your user account
-- Repository access: "Public repositories" or select specific repos
-- Repository permissions:
-    - Actions: Write
-    - Contents: Write
-    - Issues: Write
-    - Pull requests: Write
-
-### PR review comment handler
-
-The agentic workflow at [`.github/workflows/pr-review-comment-handler.md`](.github/workflows/pr-review-comment-handler.md) triggers when a review comment is posted on a PR. It triages comments into three categories:
-
-1. **Needs fixing** — replies tagging `@copilot` to address the issue directly.
-2. **Low priority** — creates a tracking issue for minor items (including medium/low security findings).
-3. **Not relevant** — resolves the review thread.
-
-Comments that cannot be classified are escalated by tagging the PR author.
+1. Fetches the review comment and its parent.
+2. Creates a GitHub issue summarizing the finding.
+3. Replies to the review thread with a link to the created issue.
+4. Resolves the review thread.
 
 ### Compiling agentic workflows
 
@@ -643,7 +628,7 @@ The docs workflow triggers on pushes to `main` when documentation sources, agent
 | **Dependabot** | Weekly updates for pip/uv dependencies and GitHub Actions | Shrinks vulnerability exposure windows |
 | **CodeQL** | SAST/code scanning for Python and GitHub Actions | Finds dataflow and security issues beyond linters |
 | **Copilot security agent** | AI-powered reviews against 15 security posture categories | Catches issues that static analysis misses |
-| **Branch protection** | Required checks, signed commits, Copilot reviewer, auto-merge for trusted bots | Prevents unverified code from reaching main |
+| **Branch protection** | Required checks, signed commits, code owner approval, Copilot reviewer on `main`, auto-merge for trusted bots | Prevents unverified code from reaching main |
 | **Pre-commit hooks** | Staged-file checks before every commit | Catches issues at the earliest possible point |
 | **Dual type checkers** | Pyright + MyPy with different inference engines | Maximal type safety for AI-generated code |
 

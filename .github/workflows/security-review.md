@@ -62,22 +62,18 @@ agent instructions.
 5. **Submit the review.** After posting all inline comments:
    - If you found any **critical** or **high** severity issues, submit the
      review with `REQUEST_CHANGES` and a summary body listing the top findings.
-   - If you found only **medium** or **low** issues, submit with `APPROVE` and
+   - If you found only **medium** or **low** issues, submit with `COMMENT` and
      a brief summary noting the medium/low findings. These are not blocking.
-   - If no issues were found, submit with `APPROVE` and a body stating the
+   - If no issues were found, submit with `COMMENT` and a body stating the
      changes look secure.
-   - **Supersede previous review if resolved.** Check the cache memory for
-     this PR to see if a previous security review submitted
-     `REQUEST_CHANGES`. If it did, compare the previous findings against the
-     current diff. If the previously flagged issues have been fixed and no
-     new critical/high issues are found, submit the new review as `APPROVE`
-     with a detailed body that includes:
-     - A summary stating the previous issues have been resolved.
-     - A list of the previously flagged findings and how each was addressed
-       (e.g., "**Input Validation** (high): User input is now sanitized in
-       `validators.py` — resolved.").
-     - Any remaining medium/low findings from the current review, if any.
-     - This replaces the old `REQUEST_CHANGES` review and unblocks the PR.
+   - **Every push dismisses the previous review.** Each run submits a fresh
+     review that replaces the previous one. Check the cache memory for this
+     PR to compare previous findings against the current diff. If any
+     previously flagged **critical** or **high** issues are still present
+     (not resolved and not outdated), include them in the current review and
+     submit with `REQUEST_CHANGES`. If all previous critical/high issues
+     have been resolved or are outdated, submit with `COMMENT` and include
+     a summary of what was resolved.
 
 6. **Update memory.** After submitting the review:
    - Write/update PR-specific memory at
