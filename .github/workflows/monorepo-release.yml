@@ -39,6 +39,10 @@ jobs:
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml \
             | sed 's/version *= *"\(.*\)"/\1/')
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][a-zA-Z0-9._-]+)?$ ]]; then
+            echo "::error::Unexpected version format: '${VERSION}'" >&2
+            exit 1
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Monorepo version: ${VERSION}"
