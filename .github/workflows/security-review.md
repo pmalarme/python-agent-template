@@ -14,7 +14,6 @@ permissions:
 engine:
   id: copilot
   agent: security-reviewer
-  model: gpt-5.3-codex
 
 tools:
   cache-memory:
