@@ -51,7 +51,7 @@ docker push <your-registry>.azurecr.io/agent1:<version>
   export UV_PUBLISH_TOKEN=<your-pypi-token>
   ```
 
-- Publish from the agent dir (`agents/agent1`): `uv run poe publish` (uploads the built wheel/sdist). From repo root use `uv run poe -C agents/agent1 publish`.
+- Publish from the repo root: `uv run poe publish` (uploads the built wheel/sdist from `agents/agent1/dist/`).
 - Package namespace: `python_agent_template.agents.agent1` uses a namespace root without `__init__.py` so multiple agents can coexist (PyPA guidance: https://packaging.python.org/en/latest/guides/packaging-namespace-packages/).
 
 ## Anatomy
