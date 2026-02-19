@@ -70,6 +70,9 @@ jobs:
           git tag -a "$TAG" -m "Monorepo release v${VERSION}"
 
           # Push via Authorization header — token not embedded in URL, never written to .git/config
+          # Push using explicit URL — token never stored in .git/config.
+          # WARNING: do not enable ACTIONS_STEP_DEBUG on production runs of
+          # this workflow; debug logs expose the full push URL including the token.
           REMOTE_HOST="${GITHUB_SERVER_URL#https://}"
           ENCODED_TOKEN=$(printf '%s' "x-access-token:${GH_TOKEN}" | base64 -w0)
           git -c "http.extraHeader=Authorization: basic ${ENCODED_TOKEN}" \
