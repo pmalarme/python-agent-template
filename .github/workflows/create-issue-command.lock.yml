@@ -61,7 +61,7 @@ jobs:
       title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Validate context variables
@@ -284,7 +284,7 @@ jobs:
       secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Checkout repository
@@ -890,7 +890,7 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
@@ -978,7 +978,7 @@ jobs:
       success: ${{ steps.parse_results.outputs.success }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent artifacts
@@ -1081,7 +1081,7 @@ jobs:
       matched_command: ${{ steps.check_command_position.outputs.matched_command }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Add eyes reaction for immediate feedback
@@ -1143,7 +1143,7 @@ jobs:
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
     steps:
       - name: Setup Scripts
-        uses: github/gh-aw/actions/setup@a70c5eada06553e3510ac27f2c3bda9d3705bccb # v0.46.3
+        uses: github/gh-aw/actions/setup@0eb518a648ba8178f4f42559a4c250d3e513acd1 # v0.49.0
         with:
           destination: /opt/gh-aw/actions
       - name: Download agent output artifact
