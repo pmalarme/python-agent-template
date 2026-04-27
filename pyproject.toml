@@ -45,7 +45,7 @@ dev = [
     "bandit>=1.7.9",
     "types-requests>=2.32.0.20241016",
     "rich>=13.9.2",
-    "pygments>=2.18.0",
+    "pygments>=2.20.0",
     "tomli>=2.0.1",
     "tomli-w>=1.0.0",
 ]
