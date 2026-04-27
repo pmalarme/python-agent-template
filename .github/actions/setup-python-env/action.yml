@@ -39,7 +39,9 @@ runs:
           # NOTE: '--' (end-of-options marker) is intentionally allowed; positional args would fail validation.
           for arg in $EXTRA_ARGS; do
             # Denylist: block flags that could redirect dependency resolution to an attacker-controlled index.
-            if [[ "$arg" =~ ^--(index-url|extra-index-url|trusted-host|find-links)(=|$) ]]; then
+            # Lowercase the token before comparison so mixed-case variants (e.g. --Index-Url) are also blocked.
+            arg_lower="${arg,,}"
+            if [[ "$arg_lower" =~ ^--(index-url|extra-index-url|trusted-host|find-links)(=|$) ]]; then
               echo "::error::Blocked dangerous extra-args token: '$arg'. Registry overrides are not permitted." >&2
               exit 1
             fi
