@@ -295,14 +295,12 @@ jobs:
             memory-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}-
       - name: Configure Git credentials
         env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          # Authenticate via inline credential helper — token is never written to .git/config and never embedded in a URL.
+          git config --global credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f'
           echo "Git configured with standard GitHub Actions identity"
       - name: Checkout PR branch
         id: checkout-pr
@@ -744,14 +742,12 @@ jobs:
           XDG_CONFIG_HOME: /home/runner
       - name: Configure Git credentials
         env:
-          REPO_NAME: ${{ github.repository }}
-          SERVER_URL: ${{ github.server_url }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          # Re-authenticate git with GitHub token
-          SERVER_URL_STRIPPED="${SERVER_URL#https://}"
-          git remote set-url origin "https://x-access-token:${{ github.token }}@${SERVER_URL_STRIPPED}/${REPO_NAME}.git"
+          # Authenticate via inline credential helper — token is never written to .git/config and never embedded in a URL.
+          git config --global credential.helper '!f() { printf "username=x-access-token\npassword=%s\n" "$GH_TOKEN"; }; f'
           echo "Git configured with standard GitHub Actions identity"
       - name: Copy Copilot session state files to logs
         if: always()
