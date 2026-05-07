@@ -52,7 +52,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("task", help="Poe task name to run (e.g. lint, test, build)")
     parser.add_argument(
         "extra",
-        nargs="*",
+        nargs=argparse.REMAINDER,
         help="Extra arguments forwarded to the Poe task",
     )
     return parser.parse_args(argv)
