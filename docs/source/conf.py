@@ -59,7 +59,7 @@ try:
     if tomllib is not None:
         # Only enable when the TOML parser (and therefore the extension's deps) is available.
         # Import is intentionally unused; it fails fast if the dependency stack is missing.
-        import sphinx_autodoc_typehints  # noqa: F401  # pyright: ignore[reportUnusedImport]
+        import sphinx_autodoc_typehints  # noqa: F401  # pyright: ignore[reportUnusedImport,reportMissingImports]
 
         extensions.append("sphinx_autodoc_typehints")
 except Exception:
