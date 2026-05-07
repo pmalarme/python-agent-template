@@ -23,7 +23,6 @@ tools:
 safe-outputs:
   reply-to-pull-request-review-comment:
     max: 1
-    github-token: ${{ secrets.GH_AW_AGENT_TOKEN }}
   create-issue:
     max: 1
 ---
