@@ -37,7 +37,7 @@ when a user requests it with the `/create-issue` command.
 
 - **Pull Request**: #${{ github.event.pull_request.number }}
 - **Review Comment ID**: ${{ github.event.comment.id }}
-- **Command Text**: ${{ needs.activation.outputs.text }}
+- **Command Text**: ${{ steps.sanitized.outputs.text }}
 
 ## Your Task
 

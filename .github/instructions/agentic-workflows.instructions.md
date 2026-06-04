@@ -6,6 +6,33 @@ applyTo: ".github/workflows/*.md"
 
 Agentic workflow files are [GitHub Agentic Workflows](https://github.github.com/gh-aw/) markdown files compiled to GitHub Actions `.lock.yml` files via `gh aw compile`.
 
+## Pinned `gh-aw` version
+
+This repository pins the `gh-aw` compiler to **`v0.77.5`**. All `.lock.yml`
+files in `.github/workflows/` are compiled with that exact version; their
+`gh-aw-metadata` header records `"compiler_version":"v0.77.5"`.
+
+Install the matching extension locally before recompiling:
+
+```bash
+gh extension remove gh-aw   # only if a different version is already installed
+gh extension install github/gh-aw --pin v0.77.5
+gh aw --version             # should print: gh aw version v0.77.5
+```
+
+When bumping the pinned version (in its own PR), recompile every workflow,
+update this section, and confirm `gh aw compile` produces no diff on a clean
+checkout.
+
+### Do not pass `--dependabot`
+
+`gh aw compile` already keeps `.github/dependabot.yml` in sync with the
+`github/gh-aw-actions/**` ignore rule it needs (so Dependabot does not bump
+the setup action ahead of the compiler version). **Never run
+`gh aw compile --dependabot` or `--force`** — those flags would overwrite
+the hand-curated Python/uv/github-actions ecosystem entries in
+`.github/dependabot.yml`.
+
 ## File Format
 
 - Each workflow is a Markdown file in `.github/workflows/` with YAML frontmatter between `---` markers followed by a Markdown body.
