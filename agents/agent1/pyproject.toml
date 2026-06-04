@@ -52,6 +52,10 @@ extend = "../../pyproject.toml"
 [tool.coverage.run]
 omit = ["**/__init__.py", "**/__main__.py"]
 
+[tool.coverage.report]
+# Security-sensitive validators require complete test coverage of all edge cases.
+fail_under = 100
+
 [tool.pyright]
 extends = "../../pyproject.toml"
 
@@ -84,6 +88,8 @@ include = "../../shared_tasks.toml"
 mypy = "uv run mypy --config-file $POE_ROOT/pyproject.toml src"
 bandit = "uv run bandit -c pyproject.toml -r src/python_agent_template/agents/agent1 docs/source"
 test = "uv run pytest --cov=python_agent_template.agents.agent1 --cov-report=term-missing:skip-covered --cov-fail-under=100"
+test-validators = "uv run pytest --cov=python_agent_template.agents.agent1.validators --cov-report=term-missing:skip-covered --cov-fail-under=100"
+check = ["fmt", "lint", "pyright", "mypy", "bandit", "test", "test-validators"]
 docs = "uv run python ../../scripts/generate_docs.py --agents-only --agents agent1"
 
 [build-system]
