@@ -573,5 +573,6 @@ Documentation is built using Sphinx and published to GitHub Pages via the [docs 
 - Install docs deps: `uv run poe docs-install`
 - Build locally: `uv run poe docs`
 - The docs workflow triggers on pushes to `main` when documentation sources, agent source code, or the docs generation script change.
+- The workflow always builds the docs and uploads a Pages artifact. The `deploy to GitHub Pages` job is **conditional** on Pages being enabled for the repository: if Pages is not enabled (the default for fresh template clones), the deploy job is skipped with a workflow notice and the overall run still succeeds. Enable Pages under **Settings → Pages** (source: *GitHub Actions*) to start publishing.
 
 > **Note:** `docs/generated/` and `agents/*/docs/generated/` are produced by CI; do not edit or commit them.
