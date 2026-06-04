@@ -18,15 +18,19 @@ and `extra-args` extend it.
 
 `extra-args` is passed to `uv sync` via an environment variable and intentionally
 word-split so that callers can supply multiple flags (e.g.
-`--all-packages --prerelease=if-necessary-or-explicit`). A defensive guard
-validates each token before execution: every token must start with `-` and
-contain only alphanumeric characters and safe flag characters (`=`, `.`, `:`,
-`/`, `@`, `+`, `-`). Tokens that do not match this pattern cause the action to
-fail immediately with an error. Despite this guard, **only hardcoded, static
-strings should be used**. Never pass dynamic values sourced from issue bodies,
-PR descriptions, user-controlled inputs, or any other external source, as those
-could introduce unexpected `uv sync` flags and alter environment resolution
-behaviour.
+`--all-packages --prerelease=if-necessary-or-explicit`). A strict **allowlist**
+guard validates each token before execution: only the following flags are
+permitted:
+
+- `--all-packages`
+- `--prerelease=if-necessary-or-explicit`
+- `-U`
+- `--upgrade`
+
+Any token not on this list causes the action to fail immediately with an error.
+Despite this guard, **only hardcoded, static strings should be used**. Never
+pass dynamic values sourced from issue bodies, PR descriptions, user-controlled
+inputs, or any other external source.
 
 ## Usage
 

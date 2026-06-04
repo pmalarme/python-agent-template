@@ -21,7 +21,7 @@ class ExampleAgent:
         """Initialize the agent with optional config."""
         self.config = config or AgentConfig()
 
-    @require_non_blank_strings("name")
+    @require_non_blank_strings("name", use_partial_bind=False)
     def run(self, name: str) -> str:
         """Return a greeting for the provided name."""
         return f"{self.config.greeting}, {name}!"

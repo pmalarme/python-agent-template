@@ -39,6 +39,18 @@ jobs:
         run: |
           VERSION=$(grep -m1 '^version' pyproject.toml \
             | sed 's/version *= *"\(.*\)"/\1/')
+
+          # Validate semver-shape (MAJOR.MINOR.PATCH[-prerelease|+build]) before
+          # writing to GITHUB_OUTPUT — keeps malformed versions (newlines,
+          # whitespace, flag-like strings) out of downstream git tag / gh
+          # release create commands. Kept in sync with the cases exercised by
+          # .github/workflows/tests/test_monorepo_release_version_regex.sh,
+          # which is executed on every relevant PR by
+          # .github/workflows/monorepo-release-version-regex-test.yml.
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][a-zA-Z0-9._-]+)?$ ]]; then
+            echo "::error::Unexpected version format: '${VERSION}'" >&2
+            exit 1
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Monorepo version: ${VERSION}"

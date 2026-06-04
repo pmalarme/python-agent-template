@@ -19,6 +19,13 @@ def test_run_requires_name() -> None:
         agent.run("")
 
 
+def test_run_raises_type_error_when_name_omitted() -> None:
+    """Agent raises TypeError when name argument is not provided."""
+    agent = ExampleAgent()
+    with pytest.raises(TypeError):
+        agent.run()  # type: ignore[call-arg]
+
+
 def test_run_rejects_whitespace_only_name() -> None:
     """Agent validates whitespace-only names via decorator guard."""
     agent = ExampleAgent()

@@ -35,6 +35,7 @@ How to build API docs for the template and each agent.
 ## CI recommendation
 - Add a GitHub Actions job that installs the docs group (`uv sync --group docs`) and runs `uv run poe docs`.
 - Fail the job on Sphinx warnings/errors; optionally upload `docs/generated` as an artifact.
+- If you publish to GitHub Pages, the bundled `python-docs.yml` workflow already does this. It always builds and uploads the artifact, and only runs the `deploy to GitHub Pages` job when Pages is enabled for the repo (probed via the Pages REST API). For fresh template clones, the deploy job skips gracefully with a workflow notice until you enable Pages under **Settings → Pages** (source: *GitHub Actions*).
 
 ## Per-agent tasks
 - Agents may expose `poe docs` locally; agent1 example runs `uv run python ../../scripts/generate_docs.py --agents-only --agents agent1`.
