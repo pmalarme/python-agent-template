@@ -15,7 +15,8 @@ engine:
   agent: security-reviewer
 
 tools:
-  cache-memory: true
+  cache-memory:
+    key: "security-review-pr-${{ github.event.pull_request.number }}"
   github:
     toolsets: [repos, pull_requests]
 
