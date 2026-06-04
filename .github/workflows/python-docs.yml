@@ -51,6 +51,7 @@ jobs:
       - name: Check GitHub Pages status
         id: pages-status
         env:
+          API_URL: ${{ github.api_url }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
@@ -59,7 +60,7 @@ jobs:
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${GH_TOKEN}" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${REPO}/pages"); then
+            "${API_URL}/repos/${REPO}/pages"); then
             echo "::error::Failed to query GitHub Pages API for ${REPO} (network or TLS error)." >&2
             exit 1
           fi
