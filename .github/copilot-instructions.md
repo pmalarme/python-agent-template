@@ -50,3 +50,9 @@ This project is a template for creating Python-based agents. It provides a struc
 
 ## Generated Docs
 - `docs/generated` and `agents/*/docs/generated` are produced by the GitHub Actions docs workflow; do not edit or commit them.
+
+## GitHub Actions Workflows
+- Regular workflow YAML lives in `.github/workflows/*.yml`. Bash regression tests for workflow logic live in `.github/workflows/tests/`.
+- When a workflow contains a guard, allowlist, or regex that the workflow itself only ever exercises against one runtime input (e.g., the semver-shape regex in `monorepo-release.yml`), add a **dedicated regression test workflow** rather than wedging the check into an unrelated existing workflow.
+- The dedicated test workflow MUST have an explicit `name:`, a top-of-file header comment explaining **why** it exists and **when/who** can trigger it, and triggers on `pull_request` + `push` to `main` + `workflow_dispatch` with a `paths:` filter scoped to the host workflow, the test script, and the test workflow itself. No `branches:` filter, so it also runs on `copilot/*` branches that the main Python workflows skip.
+- See [`.github/instructions/github-actions.instructions.md`](instructions/github-actions.instructions.md) for the full pattern, template, and reference implementation (`monorepo-release-version-regex-test.yml`).

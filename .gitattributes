@@ -1,1 +1,5 @@
 .github/workflows/*.lock.yml linguist-generated=true merge=ours
+
+# Shell scripts must keep LF endings on every platform — bash interprets a
+# stray CR as part of the command/regex and fails confusingly on Windows.
+*.sh text eol=lf
