@@ -25,6 +25,9 @@ jobs:
     name: build docs
     runs-on: ubuntu-latest
 
+    outputs:
+      pages-enabled: ${{ steps.pages-status.outputs.enabled }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -45,9 +48,41 @@ jobs:
         with:
           path: docs/generated
 
+      - name: Check GitHub Pages status
+        id: pages-status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! status=$(curl --silent --show-error -o /dev/null -w "%{http_code}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${REPO}/pages"); then
+            echo "::error::Failed to query GitHub Pages API for ${REPO} (network or TLS error)." >&2
+            exit 1
+          fi
+          # Defense-in-depth: only allow a numeric HTTP status code into the conditional.
+          if [[ ! "$status" =~ ^[0-9]+$ ]]; then
+            echo "::error::Unexpected non-numeric HTTP status from Pages API: '${status}'" >&2
+            exit 1
+          fi
+          if [[ "$status" == "200" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is enabled for ${REPO}; deploy job will run."
+          elif [[ "$status" == "404" ]]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::GitHub Pages is not enabled for ${REPO}; skipping deploy. Enable Pages in repository Settings > Pages to publish the built docs (the artifact is still uploaded)."
+          else
+            echo "::error::Unexpected HTTP status ${status} from Pages API for ${REPO}." >&2
+            exit 1
+          fi
+
   deploy:
     name: deploy to GitHub Pages
     needs: build
+    if: needs.build.outputs.pages-enabled == 'true'
     runs-on: ubuntu-latest
 
     environment:
